@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team — Spec Console</title>
+  <link rel="stylesheet" href="/lib/design-system.css">
+  <style>
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th {
+      text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-muted); padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 650;
+    }
+    .table td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .table tr:last-child td { border-bottom: none; }
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-cell .sc-avatar { width: 32px; height: 32px; }
+    .add-card { padding: 20px 22px; margin-top: 20px; }
+    .add-card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
+    .add-card p { margin: 0 0 16px; color: var(--text-secondary); font-size: 13px; }
+    .inline-form { display: grid; grid-template-columns: 1fr 1fr auto 1fr auto; gap: 10px; align-items: end; }
+    @media (max-width: 720px) { .inline-form { grid-template-columns: 1fr; } }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+    .role-select { width: 100%; padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: 8px; font-size: 13px; background: var(--surface); }
+    .icon-btn { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 4px; border-radius: 6px; }
+    .icon-btn:hover { background: var(--red-soft); color: var(--red); }
+    .hint-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+  <main class="sc-page sc-page-narrow">
+    <h1 class="sc-page-title">Team</h1>
+    <p class="sc-page-sub">People in your organization. Project owners invite them to projects from project settings.</p>
+
+    <div class="hint-box">
+      <strong>Tip:</strong> You can also invite someone directly from a project's <em>Manage members</em> page — they'll be added to the org and the project in one step.
+    </div>
+
+    <div class="sc-card" style="padding:0;overflow:hidden">
+      <table class="table">
+        <thead>
+          <tr><th>User</th><th>Org role</th><th>Projects</th><th></th></tr>
+        </thead>
+        <tbody id="userTable"></tbody>
+      </table>
+    </div>
+
+    <div class="sc-card add-card">
+      <h2>Add team member</h2>
+      <p>Adds them to your organization. They won't see any project until a project owner invites them.</p>
+      <div class="inline-form">
+        <div class="field">
+          <label for="newName">Full name</label>
+          <input class="sc-input" id="newName" placeholder="e.g. Sam Rivera" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="newEmail">Email</label>
+          <input class="sc-input" id="newEmail" placeholder="e.g. sam@company.com" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="newRole">Org role</label>
+          <select class="role-select" id="newRole">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="newPassword">Initial password</label>
+          <input class="sc-input" id="newPassword" type="password" placeholder="Login password" autocomplete="new-password">
+        </div>
+        <button class="sc-btn sc-btn-primary" id="addUserBtn" type="button" style="height:38px">Add user</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="/lib/runtime-config.js"></script>
+  <script src="/lib/org.js"></script>
+  <script src="/lib/auth.js"></script>
+  <script src="/lib/shell.js"></script>
+  <script>
+    (async () => {
+    if (!(await Auth.guardPage())) return;
+    Shell.mount("app-header", { page: "team" });
+
+    function render() {
+      const org = Org.loadOrg();
+      const isAdmin = Org.isOrgAdmin(org);
+
+      document.getElementById("userTable").innerHTML = org.users.map((u) => {
+        const projectCount = org.projects.filter((p) => p.members.some((m) => m.userId === u.id)).length;
+        const isSelf = u.id === org.currentUserId;
+        return `<tr>
+          <td><div class="user-cell"><span class="sc-avatar">${Org.initials(u.name)}</span><div><strong>${Shell.esc(u.name)}</strong>${isSelf ? ' <span style="color:var(--text-muted);font-size:12px">(you)</span>' : ""}<br><span style="color:var(--text-muted);font-size:12px">${Shell.esc(u.email)}</span></div></div></td>
+          <td>${isAdmin ? `<select class="role-select" data-role="${u.id}"><option value="member" ${u.role !== "admin" ? "selected" : ""}>Member</option><option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option></select>` : Shell.esc(u.role === "admin" ? "Admin" : "Member")}</td>
+          <td>${projectCount} project${projectCount !== 1 ? "s" : ""}</td>
+          <td>${isAdmin && !isSelf && org.users.length > 1 ? `<button class="icon-btn" data-del="${u.id}" title="Remove user">×</button>` : ""}</td>
+        </tr>`;
+      }).join("");
+
+      document.querySelectorAll("[data-role]").forEach((sel) => {
+        sel.onchange = () => {
+          const org = Org.loadOrg();
+          const user = org.users.find((u) => u.id === sel.dataset.role);
+          if (user) { user.role = sel.value; Org.saveOrg(org); Shell.toast("Role updated"); }
+        };
+      });
+
+      document.querySelectorAll("[data-del]").forEach((btn) => {
+        btn.onclick = () => {
+          if (!Org.isOrgAdmin()) return Shell.toast("Only admins can remove users");
+          if (confirm("Remove this user from the organization? They will lose access to all projects.")) {
+            Org.removeUser(btn.dataset.del);
+            render();
+            Shell.toast("User removed");
+          }
+        };
+      });
+    }
+
+    async function addUser() {
+      const name = document.getElementById("newName").value.trim();
+      const email = document.getElementById("newEmail").value.trim();
+      const password = document.getElementById("newPassword").value;
+      if (!name) return Shell.toast("Enter a name");
+      if (!password) return Shell.toast("Set an initial password");
+      const result = Org.addUser(name, email, document.getElementById("newRole").value, password);
+      if (!result.ok) return Shell.toast(result.error);
+      await Auth.setCredential(result.user.id, result.user.email, password);
+      document.getElementById("newName").value = "";
+      document.getElementById("newEmail").value = "";
+      document.getElementById("newPassword").value = "";
+      render();
+      Shell.toast(`${name} added to team`);
+      document.getElementById("newName").focus();
+    }
+
+    document.getElementById("addUserBtn").onclick = addUser;
+    document.getElementById("newName").onkeydown = (e) => { if (e.key === "Enter") addUser(); };
+    document.getElementById("newEmail").onkeydown = (e) => { if (e.key === "Enter") addUser(); };
+
+    render();
+    })();
+  </script>
+</body>
+</html>

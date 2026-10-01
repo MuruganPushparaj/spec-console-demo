@@ -1,0 +1,364 @@
+{
+  "projects": [
+    {
+      "id": "demo-clinic",
+      "name": "Clinic Booking Platform",
+      "personas": [
+        "Patient",
+        "Front desk",
+        "Clinician",
+        "Supervisor",
+        "Billing",
+        "Insurance desk"
+      ],
+      "comms": [
+        "Booking confirmation SMS",
+        "Appointment reminder (24h)",
+        "Cancellation notice",
+        "Telehealth join link",
+        "Discharge summary ready",
+        "Refund initiated"
+      ],
+      "entities": [
+        {
+          "id": "ent-appt",
+          "name": "Appointment",
+          "dims": [
+            {
+              "id": "dim-appt-status",
+              "name": "Appointment status",
+              "statuses": [
+                { "name": "Draft", "init": true },
+                { "name": "Requested" },
+                { "name": "Confirmed" },
+                { "name": "Checked-in" },
+                { "name": "In consultation" },
+                { "name": "Completed", "term": true },
+                { "name": "No-show", "term": true }
+              ],
+              "transitions": [
+                {
+                  "id": "t-draft-req",
+                  "from": "Draft",
+                  "to": "Requested",
+                  "kind": "actor",
+                  "trigger": "Submit booking form",
+                  "actors": ["Patient", "Front desk"],
+                  "pre": [],
+                  "comms": [],
+                  "answers": {
+                    "datain": { "text": "patient details, department, preferred slot, visit type, symptoms" },
+                    "onfail": { "text": "Stay in Draft — show inline validation errors; slot-unavailable opens picker" }
+                  },
+                  "impacts": [],
+                  "conf": { "datain": "firm", "onfail": "firm" },
+                  "notes": "Maps to the Appointment booking & intake form."
+                },
+                {
+                  "id": "t-req-conf",
+                  "from": "Requested",
+                  "to": "Confirmed",
+                  "kind": "actor",
+                  "trigger": "Confirm slot",
+                  "actors": ["Front desk", "Supervisor"],
+                  "pre": [{ "type": "text", "text": "Doctor availability check passed" }],
+                  "comms": [{ "comm": "Booking confirmation SMS", "to": "Patient" }],
+                  "answers": {
+                    "integ": { "yn": "yes", "text": "SMS gateway + calendar hold API" },
+                    "datain": { "text": "confirmed doctor, room/video link if telehealth" },
+                    "side": { "text": "Hold slot for 10 min until payment or waive for insured patients" },
+                    "rev": { "yn": "yes", "text": "Can revert to Requested if patient edits within 15 min" }
+                  },
+                  "impacts": [
+                    {
+                      "where": "Billing",
+                      "type": "shows data",
+                      "cond": "after Confirmed",
+                      "desc": "consultation fee line item appears"
+                    }
+                  ],
+                  "conf": { "integ": "firm", "side": "assumed", "rev": "assumed" },
+                  "notes": ""
+                },
+                {
+                  "id": "t-conf-checkin",
+                  "from": "Confirmed",
+                  "to": "Checked-in",
+                  "kind": "actor",
+                  "trigger": "Check in at reception",
+                  "actors": ["Front desk"],
+                  "pre": [{ "type": "text", "text": "Within 30 min of appointment time" }],
+                  "comms": [],
+                  "answers": {
+                    "datain": { "text": "arrival timestamp, ID verified flag" },
+                    "oper": { "text": "Audit log entry; notify assigned clinician queue" }
+                  },
+                  "impacts": [],
+                  "conf": { "datain": "firm", "oper": "firm" },
+                  "notes": ""
+                },
+                {
+                  "id": "t-checkin-consult",
+                  "from": "Checked-in",
+                  "to": "In consultation",
+                  "kind": "actor",
+                  "trigger": "Start consultation",
+                  "actors": ["Clinician"],
+                  "pre": [],
+                  "comms": [],
+                  "answers": {
+                    "datain": { "text": "consultation start time" },
+                    "concur": { "res": "confirmed", "text": "Only one clinician can start" }
+                  },
+                  "impacts": [],
+                  "conf": { "concur": "firm" },
+                  "notes": ""
+                },
+                {
+                  "id": "t-consult-done",
+                  "from": "In consultation",
+                  "to": "Completed",
+                  "kind": "actor",
+                  "trigger": "Complete visit",
+                  "actors": ["Clinician"],
+                  "pre": [],
+                  "comms": [{ "comm": "Discharge summary ready", "to": "Patient" }],
+                  "answers": {
+                    "dataout": { "text": "diagnosis notes, prescriptions, follow-up date → patient portal" },
+                    "side": { "text": "Release slot; trigger billing finalization" },
+                    "onfail": { "text": "If notes incomplete, stay In consultation with blocking prompt" }
+                  },
+                  "impacts": [
+                    {
+                      "where": "Prescription",
+                      "type": "triggers action",
+                      "cond": "if meds prescribed",
+                      "desc": "creates pharmacy order draft"
+                    }
+                  ],
+                  "conf": { "dataout": "firm", "side": "assumed" },
+                  "notes": ""
+                },
+                {
+                  "id": "t-conf-noshow",
+                  "from": "Confirmed",
+                  "to": "No-show",
+                  "kind": "automatic",
+                  "trigger": "Auto no-show after grace period",
+                  "actors": [],
+                  "pre": [{ "type": "text", "text": "30 min past slot with no check-in" }],
+                  "comms": [{ "comm": "Cancellation notice", "to": "Patient" }],
+                  "answers": {
+                    "tis": { "text": "30 minutes after scheduled time" },
+                    "side": { "text": "Release slot; optional no-show fee per policy" },
+                    "onfail": { "text": "If cron fails, supervisor manual review queue" }
+                  },
+                  "impacts": [],
+                  "conf": { "tis": "firm", "side": "assumed" },
+                  "notes": ""
+                }
+              ]
+            },
+            {
+              "id": "dim-cancel",
+              "name": "Cancellation status",
+              "statuses": [
+                { "name": "None", "init": true },
+                { "name": "Cancel requested" },
+                { "name": "Cancel approved" },
+                { "name": "Cancelled", "term": true },
+                { "name": "Cancel rejected", "term": true }
+              ],
+              "transitions": [
+                {
+                  "id": "t-cancel-req",
+                  "from": "None",
+                  "to": "Cancel requested",
+                  "kind": "actor",
+                  "trigger": "Request cancellation",
+                  "actors": ["Patient", "Front desk"],
+                  "pre": [
+                    { "type": "dimstate", "dim": "dim-appt-status", "status": "Confirmed" }
+                  ],
+                  "comms": [],
+                  "answers": {
+                    "datain": { "text": "reason code, requested by" },
+                    "rev": { "yn": "no", "text": "Cannot undo once approved" }
+                  },
+                  "impacts": [],
+                  "conf": { "datain": "firm" },
+                  "notes": "Cross-dimension precondition links to Appointment status."
+                },
+                {
+                  "id": "t-cancel-approve",
+                  "from": "Cancel requested",
+                  "to": "Cancel approved",
+                  "kind": "actor",
+                  "trigger": "Approve cancellation",
+                  "actors": ["Supervisor"],
+                  "pre": [],
+                  "comms": [],
+                  "answers": {
+                    "oper": { "text": "Supervisor override logged" }
+                  },
+                  "impacts": [],
+                  "conf": { "oper": "firm" },
+                  "notes": ""
+                },
+                {
+                  "id": "t-cancel-final",
+                  "from": "Cancel approved",
+                  "to": "Cancelled",
+                  "kind": "automatic",
+                  "trigger": "Process cancellation",
+                  "actors": [],
+                  "pre": [],
+                  "comms": [{ "comm": "Cancellation notice", "to": "Patient" }],
+                  "answers": {
+                    "integ": { "yn": "yes", "text": "Calendar release + billing adjustment" },
+                    "side": { "text": "Appointment status → Cancelled (parallel update)" }
+                  },
+                  "impacts": [
+                    {
+                      "where": "Refund",
+                      "type": "triggers action",
+                      "cond": "if paid",
+                      "desc": "opens refund workflow"
+                    }
+                  ],
+                  "conf": { "integ": "firm", "side": "assumed" },
+                  "notes": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ent-payment",
+          "name": "Payment & insurance",
+          "dims": [
+            {
+              "id": "dim-insurance",
+              "name": "Insurance verification",
+              "statuses": [
+                { "name": "Not required", "init": true },
+                { "name": "Pending upload" },
+                { "name": "Under review" },
+                { "name": "Verified", "term": true },
+                { "name": "Rejected", "term": true }
+              ],
+              "transitions": [
+                {
+                  "id": "t-ins-upload",
+                  "from": "Not required",
+                  "to": "Pending upload",
+                  "kind": "actor",
+                  "trigger": "Patient selects insured visit",
+                  "actors": ["Patient"],
+                  "pre": [],
+                  "comms": [],
+                  "answers": {
+                    "datain": { "text": "insurance card file from form upload field" }
+                  },
+                  "impacts": [],
+                  "conf": { "datain": "firm" },
+                  "notes": "Tied to insurance file upload on booking form."
+                },
+                {
+                  "id": "t-ins-review",
+                  "from": "Pending upload",
+                  "to": "Under review",
+                  "kind": "actor",
+                  "trigger": "Submit for verification",
+                  "actors": ["Insurance desk"],
+                  "pre": [{ "type": "text", "text": "Valid file type and size" }],
+                  "comms": [],
+                  "answers": {
+                    "integ": { "yn": "yes", "text": "TPA eligibility API" },
+                    "onfail": { "text": "Return to Pending upload with error" }
+                  },
+                  "impacts": [],
+                  "conf": { "integ": "assumed" },
+                  "notes": ""
+                },
+                {
+                  "id": "t-ins-verified",
+                  "from": "Under review",
+                  "to": "Verified",
+                  "kind": "actor",
+                  "trigger": "Approve coverage",
+                  "actors": ["Insurance desk"],
+                  "pre": [],
+                  "comms": [],
+                  "answers": {
+                    "dataout": { "text": "coverage amount, co-pay → billing" },
+                    "side": { "text": "Adjust consultation fee on appointment" }
+                  },
+                  "impacts": [
+                    {
+                      "where": "Appointment",
+                      "type": "shows data",
+                      "cond": "Verified",
+                      "desc": "co-pay displayed on confirmation"
+                    }
+                  ],
+                  "conf": { "dataout": "firm", "side": "assumed" },
+                  "notes": ""
+                }
+              ]
+            },
+            {
+              "id": "dim-refund",
+              "name": "Refund status",
+              "statuses": [
+                { "name": "Not applicable", "init": true },
+                { "name": "Pending" },
+                { "name": "Processing" },
+                { "name": "Paid", "term": true },
+                { "name": "Failed", "term": true }
+              ],
+              "transitions": [
+                {
+                  "id": "t-refund-pending",
+                  "from": "Not applicable",
+                  "to": "Pending",
+                  "kind": "automatic",
+                  "trigger": "Cancellation with prior payment",
+                  "actors": [],
+                  "pre": [
+                    { "type": "dimstate", "dim": "dim-cancel", "status": "Cancel approved" }
+                  ],
+                  "comms": [{ "comm": "Refund initiated", "to": "Patient" }],
+                  "answers": {
+                    "datain": { "text": "original transaction id, amount" },
+                    "onfail": { "text": "Manual billing queue if payment record missing" }
+                  },
+                  "impacts": [],
+                  "conf": { "datain": "firm", "onfail": "assumed" },
+                  "notes": "Cross-entity link from cancellation flow."
+                },
+                {
+                  "id": "t-refund-process",
+                  "from": "Pending",
+                  "to": "Processing",
+                  "kind": "automatic",
+                  "trigger": "Start refund job",
+                  "actors": ["Billing"],
+                  "pre": [{ "type": "text", "text": "Supervisor approved amount" }],
+                  "comms": [],
+                  "answers": {
+                    "integ": { "yn": "yes", "text": "Payment gateway refund API" },
+                    "tis": { "text": "SLA 5 business days" }
+                  },
+                  "impacts": [],
+                  "conf": { "integ": "firm", "tis": "assumed" },
+                  "notes": ""
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

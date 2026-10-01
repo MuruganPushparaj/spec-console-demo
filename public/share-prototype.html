@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared prototype</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --border: #e4e7ec;
+      --text: #111827;
+      --text-secondary: #5f6b7a;
+      --text-muted: #8b95a5;
+      --brand: #0f6d6a;
+      --amber: #b45309;
+      --amber-soft: #fef3c7;
+      --red: #c0392b;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+    }
+    .bar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      min-height: 48px;
+    }
+    .mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      display: grid; place-items: center;
+      background: var(--amber-soft); color: var(--amber);
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .meta { min-width: 0; flex: 1; }
+    .meta .name {
+      font-size: 14px; font-weight: 650;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .meta .hint { font-size: 11px; color: var(--text-muted); }
+    .bar a {
+      font-size: 12px; font-weight: 600; color: var(--brand);
+      text-decoration: none; white-space: nowrap;
+    }
+    .frame-wrap {
+      position: absolute;
+      inset: 48px 0 0 0;
+      background: #fff;
+    }
+    .frame-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+    .state {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .state h1 { margin: 0 0 8px; font-size: 22px; letter-spacing: -0.02em; }
+    .state p { margin: 0; color: var(--text-secondary); max-width: 420px; line-height: 1.55; }
+    .state.error h1 { color: var(--red); }
+    .spinner {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--amber);
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="state">
+      <div>
+        <div class="spinner"></div>
+        <h1>Loading prototype…</h1>
+        <p>Fetching the shared HTML preview.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (async function () {
+    const root = document.getElementById("root");
+    const params = new URLSearchParams(location.search);
+    const token = (params.get("t") || params.get("token") || "").trim();
+
+    function showError(title, message) {
+      document.title = "Prototype unavailable";
+      root.innerHTML = `<div class="state error"><div><h1>${esc(title)}</h1><p>${esc(message)}</p></div></div>`;
+    }
+
+    function esc(s) {
+      return String(s || "").replace(/[&<>"]/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;",
+      }[c]));
+    }
+
+    function fromLocal(token) {
+      try {
+        const shares = JSON.parse(localStorage.getItem("spec-console-prototype-shares") || "{}");
+        return shares[token] || null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (!token) {
+      showError("Missing link", "This share URL is incomplete. Ask the team for a new prototype link.");
+      return;
+    }
+
+    let record = null;
+    try {
+      const res = await fetch(`/api/prototypes/${encodeURIComponent(token)}`);
+      if (res.ok) record = await res.json();
+    } catch (_) {}
+
+    if (!record || !record.html) record = fromLocal(token);
+    if (!record || !record.html) {
+      showError(
+        "Prototype not found",
+        "This link may have expired, or the prototype was deleted. Ask the team to share it again."
+      );
+      return;
+    }
+
+    const name = record.name || "Prototype";
+    document.title = `${name} — Shared prototype`;
+    root.innerHTML = `
+      <div class="bar">
+        <div class="mark">PT</div>
+        <div class="meta">
+          <div class="name">${esc(name)}</div>
+          <div class="hint">Shared prototype · Spec Console</div>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <iframe id="frame" title="${esc(name)}" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
+      </div>`;
+    document.getElementById("frame").srcdoc = record.html;
+  })();
+  </script>
+</body>
+</html>

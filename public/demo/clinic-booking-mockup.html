@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book appointment — CityCare Clinic</title>
+  <style>
+    :root {
+      --brand: #1a8a85;
+      --brand-soft: #e6f3f2;
+      --border: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --surface: #fff;
+      --bg: #f8fafb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(160deg, #eef7f6 0%, var(--bg) 50%, #fff 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--brand);
+      background: var(--brand-soft);
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.03em; }
+    .sub { color: var(--muted); margin: 0 0 24px; font-size: 15px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #fff;
+    }
+    .field textarea { min-height: 88px; resize: vertical; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .steps {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .step {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--brand-soft);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brand);
+      text-align: center;
+    }
+    .step.active { background: var(--brand); color: #fff; }
+    .note {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      font-size: 13px;
+      color: #92400e;
+    }
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="badge">Prototype mockup</div>
+    <h1>Book an appointment</h1>
+    <p class="sub">CityCare Clinic · multi-specialty · demo UI for client review</p>
+
+    <div class="steps">
+      <div class="step active">1 · Details</div>
+      <div class="step">2 · Schedule</div>
+      <div class="step">3 · Confirm</div>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div class="field">
+          <label>Patient full name</label>
+          <input type="text" value="Ananya Sharma" readonly>
+        </div>
+        <div class="field">
+          <label>Mobile number</label>
+          <input type="tel" value="+91 98765 43210" readonly>
+        </div>
+        <div class="field">
+          <label>Department</label>
+          <select>
+            <option selected>Cardiology</option>
+            <option>General Medicine</option>
+            <option>Dermatology</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Preferred date &amp; time</label>
+          <input type="text" value="Thu 3 Oct · 10:30 AM" readonly>
+        </div>
+        <div class="field">
+          <label>Visit type</label>
+          <select>
+            <option selected>In-person visit</option>
+            <option>Telehealth</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Consultation fee</label>
+          <input type="text" value="INR 1,200" readonly>
+        </div>
+      </div>
+      <div class="field">
+        <label>Symptoms or concerns</label>
+        <textarea readonly>Chest discomfort during exercise · follow-up ECG review</textarea>
+      </div>
+      <div class="note">Estimated wait: ~12 min · Dr. Mehta available on selected slot</div>
+      <div class="row">
+        <button class="btn btn-primary" type="button">Book appointment</button>
+        <button class="btn btn-secondary" type="button">Save draft</button>
+      </div>
+    </div>
+    <p class="footer">Spec Console prototype · not connected to live systems</p>
+  </div>
+</body>
+</html>

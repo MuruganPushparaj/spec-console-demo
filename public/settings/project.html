@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project settings — Spec Console</title>
+  <link rel="stylesheet" href="/lib/design-system.css">
+  <style>
+    .settings-grid { display: grid; gap: 20px; }
+    .settings-card { padding: 20px 22px; }
+    .settings-card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
+    .settings-card p { margin: 0 0 16px; color: var(--text-secondary); font-size: 13px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+    .member-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .member-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    @media (max-width: 640px) {
+      .member-item { grid-template-columns: auto 1fr; }
+      .member-item .member-controls { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+    }
+    .member-item .nm { font-weight: 600; font-size: 13px; }
+    .member-item .email { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+    .member-controls select { padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12px; }
+    .owner-toggle {
+      display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .assign-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .assign-row .sc-input, .assign-row select { flex: 1; min-width: 120px; }
+    .sc-badge-owner { background: #ede9fe; color: #6d28d9; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+    .invite-box {
+      margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .invite-box h3 { margin: 0 0 8px; font-size: 14px; font-weight: 650; }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+  <main class="sc-page sc-page-narrow" id="main"></main>
+
+  <script src="/lib/runtime-config.js"></script>
+  <script src="/lib/org.js"></script>
+  <script src="/lib/auth.js"></script>
+  <script src="/lib/shell.js"></script>
+  <script>
+    (async () => {
+    if (!(await Auth.guardPage())) return;
+    const projectId = Org.getProjectIdFromUrl();
+    const ctx = Shell.mount("app-header", { page: "project-settings", projectId, requireProject: true, requireOwner: true });
+    if (!ctx) throw new Error("no access");
+    render();
+
+    function render() {
+      const org = Org.loadOrg();
+      const project = Org.getProject(projectId, org);
+      const assignedIds = new Set(project.members.map((m) => m.userId));
+      const unassigned = org.users.filter((u) => !assignedIds.has(u.id));
+
+      document.getElementById("main").innerHTML = `
+        <h1 class="sc-page-title">Project settings</h1>
+        <p class="sc-page-sub">${Shell.esc(project.name)} — only owners can invite members and change access.</p>
+
+        <div class="settings-grid">
+          <div class="sc-card settings-card">
+            <h2>General</h2>
+            <p>Update the project name and description shown on the dashboard.</p>
+            <div class="field"><label>Project name</label><input class="sc-input" id="projName" value="${Shell.esc(project.name)}"></div>
+            <div class="field"><label>Description</label><input class="sc-input" id="projDesc" value="${Shell.esc(project.description || "")}"></div>
+            <button class="sc-btn sc-btn-primary" id="saveGeneral" type="button">Save changes</button>
+          </div>
+
+          <div class="sc-card settings-card">
+            <h2>Members & access</h2>
+            <p>Each person can have different permissions on this project. Owners can invite people and promote others to owner.</p>
+            <div class="member-list">
+              ${project.members.map((m) => {
+                const u = org.users.find((x) => x.id === m.userId);
+                if (!u) return "";
+                const isSelf = u.id === org.currentUserId;
+                const ownerCount = project.members.filter((x) => x.isOwner).length;
+                const canRemove = !(m.isOwner && ownerCount === 1);
+                return `<div class="member-item">
+                  <span class="sc-avatar">${Org.initials(u.name)}</span>
+                  <div>
+                    <div class="nm">${Shell.esc(u.name)}${isSelf ? " (you)" : ""}</div>
+                    <div class="email">${Shell.esc(u.email)}</div>
+                  </div>
+                  ${m.isOwner ? '<span class="sc-badge-owner">Owner</span>' : ""}
+                  <div class="member-controls">
+                    <select data-member-access="${u.id}" ${m.isOwner ? "disabled" : ""}>
+                      <option value="read" ${m.access === "read" ? "selected" : ""}>Read only</option>
+                      <option value="write" ${m.access === "write" ? "selected" : ""}>Read & write</option>
+                    </select>
+                    <label class="owner-toggle">
+                      <input type="checkbox" data-member-owner="${u.id}" ${m.isOwner ? "checked" : ""} ${m.isOwner && ownerCount === 1 ? "disabled" : ""}>
+                      Owner
+                    </label>
+                    ${canRemove ? `<button data-remove-member="${u.id}" type="button" style="border:none;background:none;color:var(--text-muted);cursor:pointer;font-size:18px" title="Remove">×</button>` : ""}
+                  </div>
+                </div>`;
+              }).join("")}
+            </div>
+
+            <div class="invite-box">
+              <h3>Invite existing team member</h3>
+              ${unassigned.length ? `<div class="assign-row">
+                <select class="sc-input" id="assignUser">${unassigned.map((u) => `<option value="${u.id}">${Shell.esc(u.name)} (${Shell.esc(u.email)})</option>`).join("")}</select>
+                <select class="sc-input" id="assignAccess">
+                  <option value="read">Read only</option>
+                  <option value="write">Read & write</option>
+                </select>
+                <label class="owner-toggle"><input type="checkbox" id="assignOwner"> Make owner</label>
+                <button class="sc-btn sc-btn-secondary" id="assignBtn" type="button">Add to project</button>
+              </div>` : '<p style="margin:0 0 16px;color:var(--text-muted);font-size:13px">Everyone in your organization is already on this project.</p>'}
+
+              <h3 style="margin-top:20px">Or invite someone new</h3>
+              <p style="margin:0 0 12px;color:var(--text-secondary);font-size:13px">Adds them to your organization and this project in one step.</p>
+              <div class="assign-row">
+                <input class="sc-input" id="newInviteName" placeholder="Full name">
+                <input class="sc-input" id="newInviteEmail" placeholder="Email (optional)">
+                <select class="sc-input" id="newInviteAccess">
+                  <option value="read">Read only</option>
+                  <option value="write">Read & write</option>
+                </select>
+                <label class="owner-toggle"><input type="checkbox" id="newInviteOwner"> Make owner</label>
+                <button class="sc-btn sc-btn-primary" id="newInviteBtn" type="button">Invite</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      document.getElementById("saveGeneral").onclick = () => {
+        const org = Org.loadOrg();
+        const p = Org.getProject(projectId, org);
+        p.name = document.getElementById("projName").value.trim() || p.name;
+        p.description = document.getElementById("projDesc").value.trim();
+        Org.saveOrg(org);
+        Shell.toast("Project updated");
+        Shell.mount("app-header", { page: "project-settings", projectId, requireProject: true, requireOwner: true });
+      };
+
+      document.querySelectorAll("[data-member-access]").forEach((sel) => {
+        sel.onchange = () => {
+          const result = Org.updateMember(projectId, sel.dataset.memberAccess, { access: sel.value });
+          if (!result.ok) return Shell.toast(result.error);
+          Shell.toast("Access updated");
+          render();
+        };
+      });
+
+      document.querySelectorAll("[data-member-owner]").forEach((cb) => {
+        cb.onchange = () => {
+          const result = Org.updateMember(projectId, cb.dataset.memberOwner, { isOwner: cb.checked });
+          if (!result.ok) { cb.checked = !cb.checked; return Shell.toast(result.error); }
+          Shell.toast(cb.checked ? "Promoted to owner" : "Owner role removed");
+          render();
+        };
+      });
+
+      document.querySelectorAll("[data-remove-member]").forEach((btn) => {
+        btn.onclick = () => {
+          if (!confirm("Remove this person from the project?")) return;
+          const result = Org.removeMember(projectId, btn.dataset.removeMember);
+          if (!result.ok) return Shell.toast(result.error);
+          render();
+          Shell.toast("Member removed");
+        };
+      });
+
+      const assignBtn = document.getElementById("assignBtn");
+      if (assignBtn) {
+        assignBtn.onclick = () => {
+          const userId = document.getElementById("assignUser").value;
+          const access = document.getElementById("assignAccess").value;
+          const isOwner = document.getElementById("assignOwner").checked;
+          const result = Org.assignMember(projectId, userId, access, isOwner);
+          if (!result.ok) return Shell.toast(result.error);
+          render();
+          Shell.toast("Added to project");
+        };
+      }
+
+      const newInviteBtn = document.getElementById("newInviteBtn");
+      if (newInviteBtn) {
+        const doInvite = () => {
+          const name = document.getElementById("newInviteName").value.trim();
+          const email = document.getElementById("newInviteEmail").value.trim();
+          const access = document.getElementById("newInviteAccess").value;
+          const isOwner = document.getElementById("newInviteOwner").checked;
+          if (!name) return Shell.toast("Enter a name");
+          const result = Org.inviteNewUserToProject(projectId, name, email, access, isOwner);
+          if (!result.ok) return Shell.toast(result.error);
+          render();
+          Shell.toast(`${name} invited to project`);
+        };
+        newInviteBtn.onclick = doInvite;
+        document.getElementById("newInviteName").onkeydown = (e) => { if (e.key === "Enter") doInvite(); };
+        document.getElementById("newInviteEmail").onkeydown = (e) => { if (e.key === "Enter") doInvite(); };
+      }
+    }
+    })();
+  </script>
+</body>
+</html>

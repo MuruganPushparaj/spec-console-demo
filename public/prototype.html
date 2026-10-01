@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototype — Spec Console</title>
+  <link rel="stylesheet" href="/lib/design-system.css">
+  <style>
+    :root {
+      --pt-accent: var(--amber);
+      --pt-accent-soft: var(--amber-soft);
+    }
+
+    .app {
+      display: flex;
+      height: calc(100vh - var(--header-h));
+      min-height: 0;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .side {
+      flex: 0 0 280px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      padding: 20px 16px;
+      height: 100%;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pt-brand {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pt-brand-title {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .pt-brand-title small {
+      display: block;
+      font-weight: 500;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0;
+      margin-top: 2px;
+    }
+
+    .side-section {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 650;
+      margin: 0 0 10px;
+    }
+
+    .proto-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      margin-bottom: 14px;
+    }
+
+    .proto-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .proto-item:hover { background: var(--surface); border-color: var(--border-strong); }
+    .proto-item.active {
+      border-color: var(--pt-accent);
+      background: var(--pt-accent-soft);
+    }
+    .proto-item .nm {
+      font-weight: 650;
+      font-size: 13px;
+      color: var(--text);
+      word-break: break-word;
+    }
+    .proto-item .meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .empty-side {
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 8px 4px 16px;
+      line-height: 1.5;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .pt-topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .pt-topbar h1 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .pt-topbar .sub {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .pt-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .share-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      width: 100%;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .share-box label {
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .share-box input {
+      flex: 1;
+      min-width: 200px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .preview-wrap {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background: #fff;
+    }
+    .preview-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    .empty-main {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+    .empty-main h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      color: var(--text);
+      font-weight: 700;
+    }
+    .empty-main p {
+      margin: 0 0 18px;
+      max-width: 420px;
+      line-height: 1.55;
+    }
+
+    .dropzone {
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 28px 20px;
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-align: center;
+    }
+    .dropzone:hover, .dropzone.drag {
+      border-color: var(--pt-accent);
+      background: var(--pt-accent-soft);
+    }
+    .dropzone strong { display: block; margin-bottom: 4px; color: var(--text); }
+    .dropzone span { font-size: 12px; color: var(--text-muted); }
+
+    .hidden { display: none !important; }
+    .danger-text { color: var(--red); }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+  <div class="sc-module-body">
+    <div class="app">
+      <aside class="side">
+        <div class="pt-brand">
+          <div class="pt-brand-title">Prototype<small>upload HTML · preview · share with clients</small></div>
+        </div>
+        <div class="side-section">Prototypes in project</div>
+        <div class="proto-list" id="protoList"></div>
+        <button class="sc-btn sc-btn-primary sc-btn-sm" id="uploadBtn" type="button" style="width:100%">+ Upload HTML</button>
+        <input type="file" id="fileInput" accept=".html,.htm,text/html" class="hidden" multiple>
+      </aside>
+      <main class="main" id="main"></main>
+    </div>
+  </div>
+
+  <script src="/lib/runtime-config.js"></script>
+  <script src="/lib/org.js"></script>
+  <script src="/lib/auth.js"></script>
+  <script src="/lib/shell.js"></script>
+  <script>
+  (async function () {
+    "use strict";
+    if (!(await Auth.guardPage())) return;
+    const PROJECT_ID = Org.getProjectIdFromUrl();
+    if (!PROJECT_ID) { window.location.replace("/index.html"); return; }
+    const shellCtx = Shell.mount("app-header", { page: "prototype", projectId: PROJECT_ID, requireProject: true });
+    if (!shellCtx) { window.location.replace("/index.html?error=no-access"); return; }
+
+    const READ_ONLY = () => !Org.canWrite(PROJECT_ID);
+    const STORE_KEY = "spec-console-prototypes";
+    const SHARES_KEY = "spec-console-prototype-shares";
+    const MAX_BYTES = 5 * 1024 * 1024;
+
+    let WS = loadWS();
+    ensureActive();
+
+    function loadWS() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed.prototypes)) parsed.prototypes = [];
+          return parsed;
+        }
+      } catch (_) {}
+      return { prototypes: [], activeId: null };
+    }
+
+    function saveWS() {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(WS));
+        return true;
+      } catch (e) {
+        Shell.toast("Could not save — storage may be full");
+        return false;
+      }
+    }
+
+    function projectProtos() {
+      return WS.prototypes.filter((p) => p.projectId === PROJECT_ID);
+    }
+
+    function active() {
+      return WS.prototypes.find((p) => p.id === WS.activeId && p.projectId === PROJECT_ID) || null;
+    }
+
+    function ensureActive() {
+      const list = projectProtos();
+      if (!list.length) {
+        WS.activeId = null;
+        return;
+      }
+      if (!list.some((p) => p.id === WS.activeId)) WS.activeId = list[0].id;
+    }
+
+    function uid(prefix) {
+      return prefix + Math.random().toString(36).slice(2, 10);
+    }
+
+    function shareToken() {
+      if (crypto.randomUUID) return crypto.randomUUID().replace(/-/g, "");
+      return uid("s") + uid("") + uid("");
+    }
+
+    function formatSize(n) {
+      if (n < 1024) return n + " B";
+      if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+      return (n / 1048576).toFixed(1) + " MB";
+    }
+
+    function formatDate(ts) {
+      try {
+        return new Date(ts).toLocaleString(undefined, {
+          month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+        });
+      } catch (_) {
+        return "";
+      }
+    }
+
+    function shareUrl(token) {
+      return `${location.origin}/share-prototype.html?t=${encodeURIComponent(token)}`;
+    }
+
+    function upsertLocalShare(proto) {
+      let shares = {};
+      try {
+        shares = JSON.parse(localStorage.getItem(SHARES_KEY) || "{}") || {};
+      } catch (_) { shares = {}; }
+      shares[proto.shareToken] = {
+        token: proto.shareToken,
+        name: proto.name,
+        html: proto.html,
+        projectId: proto.projectId,
+        updatedAt: proto.updatedAt,
+      };
+      try {
+        localStorage.setItem(SHARES_KEY, JSON.stringify(shares));
+      } catch (_) {}
+    }
+
+    function removeLocalShare(token) {
+      try {
+        const shares = JSON.parse(localStorage.getItem(SHARES_KEY) || "{}") || {};
+        delete shares[token];
+        localStorage.setItem(SHARES_KEY, JSON.stringify(shares));
+      } catch (_) {}
+    }
+
+    async function publishShare(proto) {
+      upsertLocalShare(proto);
+      try {
+        const res = await fetch("/api/prototypes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: proto.shareToken,
+            name: proto.name,
+            html: proto.html,
+            projectId: proto.projectId,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Publish failed");
+        }
+        proto.published = true;
+        saveWS();
+        return true;
+      } catch (err) {
+        proto.published = false;
+        saveWS();
+        console.warn(err);
+        return false;
+      }
+    }
+
+    async function unpublishShare(token) {
+      removeLocalShare(token);
+      try {
+        await fetch(`/api/prototypes/${encodeURIComponent(token)}`, { method: "DELETE" });
+      } catch (_) {}
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("read_failed"));
+        reader.readAsText(file);
+      });
+    }
+
+    async function addFiles(fileList) {
+      if (READ_ONLY()) return Shell.toast("Read-only access");
+      const files = Array.from(fileList || []).filter((f) =>
+        /\.html?$/i.test(f.name) || f.type === "text/html" || !f.type
+      );
+      if (!files.length) return Shell.toast("Choose an .html file");
+
+      let added = 0;
+      for (const file of files) {
+        if (file.size > MAX_BYTES) {
+          Shell.toast(`${file.name} is too large (max 5MB)`);
+          continue;
+        }
+        let html;
+        try {
+          html = await readFileAsText(file);
+        } catch (_) {
+          Shell.toast(`Could not read ${file.name}`);
+          continue;
+        }
+        if (!html.trim()) {
+          Shell.toast(`${file.name} is empty`);
+          continue;
+        }
+        const proto = {
+          id: uid("pr"),
+          projectId: PROJECT_ID,
+          name: file.name.replace(/\.html?$/i, "") || file.name,
+          fileName: file.name,
+          html,
+          size: file.size,
+          shareToken: shareToken(),
+          published: false,
+          updatedAt: Date.now(),
+        };
+        WS.prototypes.push(proto);
+        WS.activeId = proto.id;
+        saveWS();
+        await publishShare(proto);
+        added += 1;
+      }
+      if (added) {
+        Shell.toast(added === 1 ? "Prototype uploaded" : `${added} prototypes uploaded`);
+        render();
+      }
+    }
+
+    async function replaceActive(file) {
+      if (READ_ONLY()) return Shell.toast("Read-only access");
+      const proto = active();
+      if (!proto || !file) return;
+      if (file.size > MAX_BYTES) return Shell.toast("File is too large (max 5MB)");
+      let html;
+      try {
+        html = await readFileAsText(file);
+      } catch (_) {
+        return Shell.toast("Could not read file");
+      }
+      if (!html.trim()) return Shell.toast("File is empty");
+      proto.html = html;
+      proto.size = file.size;
+      proto.fileName = file.name;
+      if (!proto.name) proto.name = file.name.replace(/\.html?$/i, "") || file.name;
+      proto.updatedAt = Date.now();
+      saveWS();
+      await publishShare(proto);
+      Shell.toast("Prototype updated");
+      render();
+    }
+
+    async function deleteActive() {
+      if (READ_ONLY()) return Shell.toast("Read-only access");
+      const proto = active();
+      if (!proto) return;
+      if (!confirm(`Delete “${proto.name}”? The share link will stop working.`)) return;
+      await unpublishShare(proto.shareToken);
+      WS.prototypes = WS.prototypes.filter((p) => p.id !== proto.id);
+      ensureActive();
+      saveWS();
+      Shell.toast("Prototype deleted");
+      render();
+    }
+
+    async function copyShareLink() {
+      const proto = active();
+      if (!proto) return;
+      await publishShare(proto);
+      const url = shareUrl(proto.shareToken);
+      try {
+        await navigator.clipboard.writeText(url);
+        Shell.toast("Share link copied");
+      } catch (_) {
+        const input = document.getElementById("shareLink");
+        if (input) {
+          input.select();
+          document.execCommand("copy");
+          Shell.toast("Share link copied");
+        } else {
+          Shell.toast(url);
+        }
+      }
+      render();
+    }
+
+    function openPreviewWindow() {
+      const proto = active();
+      if (!proto) return;
+      const w = window.open("", "_blank");
+      if (!w) return Shell.toast("Allow pop-ups to open preview");
+      w.document.open();
+      w.document.write(proto.html);
+      w.document.close();
+    }
+
+    function bindDropzone(el) {
+      if (!el || READ_ONLY()) return;
+      el.onclick = () => document.getElementById("fileInput").click();
+      el.ondragover = (e) => { e.preventDefault(); el.classList.add("drag"); };
+      el.ondragleave = () => el.classList.remove("drag");
+      el.ondrop = (e) => {
+        e.preventDefault();
+        el.classList.remove("drag");
+        addFiles(e.dataTransfer.files);
+      };
+    }
+
+    function renderList() {
+      const list = projectProtos().slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      const el = document.getElementById("protoList");
+      if (!list.length) {
+        el.innerHTML = `<div class="empty-side">No prototypes yet. Upload an HTML file to preview and share it.</div>`;
+        return;
+      }
+      el.innerHTML = list.map((p) => `
+        <button class="proto-item ${p.id === WS.activeId ? "active" : ""}" type="button" data-id="${Shell.esc(p.id)}">
+          <div>
+            <div class="nm">${Shell.esc(p.name)}</div>
+            <div class="meta">${formatSize(p.size || 0)} · ${formatDate(p.updatedAt)}</div>
+          </div>
+        </button>
+      `).join("");
+      el.querySelectorAll(".proto-item").forEach((btn) => {
+        btn.onclick = () => {
+          WS.activeId = btn.dataset.id;
+          saveWS();
+          render();
+        };
+      });
+    }
+
+    function renderMain() {
+      const main = document.getElementById("main");
+      const proto = active();
+      const ro = READ_ONLY();
+
+      if (!proto) {
+        main.innerHTML = `
+          <div class="empty-main">
+            <div>
+              <h2>Upload a prototype</h2>
+              <p>Drop an HTML file here. You’ll get an in-app preview and a link you can send to the client.</p>
+              ${ro ? "" : `<div class="dropzone" id="dropzone">
+                <strong>Drop HTML here</strong>
+                <span>or click to choose a file · max 5MB</span>
+              </div>`}
+            </div>
+          </div>`;
+        bindDropzone(document.getElementById("dropzone"));
+        return;
+      }
+
+      const url = shareUrl(proto.shareToken);
+      main.innerHTML = `
+        <div class="pt-topbar">
+          <div style="flex:1;min-width:200px">
+            <h1 contenteditable="${ro ? "false" : "true"}" id="protoName" spellcheck="false">${Shell.esc(proto.name)}</h1>
+            <p class="sub">${Shell.esc(proto.fileName || "HTML")} · ${formatSize(proto.size || 0)} · updated ${formatDate(proto.updatedAt)}</p>
+            <div class="share-box">
+              <label for="shareLink">Client link</label>
+              <input class="sc-input" id="shareLink" readonly value="${Shell.esc(url)}">
+              <button class="sc-btn sc-btn-primary sc-btn-sm" id="copyLink" type="button">Copy link</button>
+            </div>
+          </div>
+          <div class="pt-actions">
+            <button class="sc-btn sc-btn-secondary sc-btn-sm" id="openPreview" type="button">Open preview</button>
+            ${ro ? "" : `<button class="sc-btn sc-btn-secondary sc-btn-sm" id="replaceBtn" type="button">Replace HTML</button>
+            <button class="sc-btn sc-btn-ghost sc-btn-sm danger-text" id="deleteBtn" type="button">Delete</button>
+            <input type="file" id="replaceInput" accept=".html,.htm,text/html" class="hidden">`}
+          </div>
+        </div>
+        <div class="preview-wrap">
+          <iframe id="previewFrame" title="Prototype preview" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
+        </div>`;
+
+      const frame = document.getElementById("previewFrame");
+      frame.srcdoc = proto.html;
+
+      document.getElementById("copyLink").onclick = copyShareLink;
+      document.getElementById("openPreview").onclick = openPreviewWindow;
+      document.getElementById("shareLink").onclick = (e) => e.target.select();
+
+      if (!ro) {
+        const nameEl = document.getElementById("protoName");
+        nameEl.onblur = async () => {
+          const next = nameEl.textContent.trim() || proto.name;
+          if (next === proto.name) return;
+          proto.name = next;
+          proto.updatedAt = Date.now();
+          saveWS();
+          await publishShare(proto);
+          renderList();
+        };
+        nameEl.onkeydown = (e) => {
+          if (e.key === "Enter") { e.preventDefault(); nameEl.blur(); }
+        };
+        document.getElementById("replaceBtn").onclick = () => document.getElementById("replaceInput").click();
+        document.getElementById("replaceInput").onchange = (e) => {
+          const file = e.target.files && e.target.files[0];
+          e.target.value = "";
+          if (file) replaceActive(file);
+        };
+        document.getElementById("deleteBtn").onclick = deleteActive;
+      }
+    }
+
+    function render() {
+      document.getElementById("uploadBtn").disabled = READ_ONLY();
+      renderList();
+      renderMain();
+    }
+
+    document.getElementById("uploadBtn").onclick = () => {
+      if (READ_ONLY()) return Shell.toast("Read-only access");
+      document.getElementById("fileInput").click();
+    };
+    document.getElementById("fileInput").onchange = (e) => {
+      const files = e.target.files;
+      e.target.value = "";
+      if (files && files.length) addFiles(files);
+    };
+
+    render();
+  })();
+  </script>
+</body>
+</html>

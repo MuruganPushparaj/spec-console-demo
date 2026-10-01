@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — Spec Console</title>
+  <link rel="stylesheet" href="/lib/design-system.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(160deg, var(--surface-2) 0%, var(--bg) 45%, #e6f3f2 100%);
+    }
+    .login-wrap { width: 100%; max-width: 400px; }
+    .login-brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .login-brand .mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--brand), #15908c);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 800;
+      margin: 0 auto 14px;
+    }
+    .login-brand h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+    .login-brand p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--shadow-md);
+    }
+    .login-card h2 {
+      margin: 0 0 6px;
+      font-size: 17px;
+      font-weight: 650;
+    }
+    .login-card .sub {
+      margin: 0 0 20px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .login-error {
+      display: none;
+      background: var(--red-soft);
+      border: 1px solid #f5c2c0;
+      color: var(--red);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .login-error.show { display: block; }
+    .login-actions { margin-top: 8px; }
+    .login-actions .sc-btn { width: 100%; }
+    .login-foot {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .demo-creds {
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: #065f46;
+      line-height: 1.5;
+    }
+    .demo-creds strong { display: block; margin-bottom: 4px; }
+    .demo-creds code {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      background: rgba(255,255,255,0.7);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-brand">
+      <div class="mark">SC</div>
+      <h1>Spec Console</h1>
+      <p>Forms &amp; status validation</p>
+    </div>
+
+    <div class="login-card">
+      <h2>Sign in</h2>
+      <p class="sub" id="loginSub">Sign in to access your projects.</p>
+      <div class="demo-creds" id="demoCreds" hidden>
+        <strong>Demo credentials (local install)</strong>
+        Email: <code id="demoEmail">user@example.com</code> · Password: <code>demo</code>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <form id="loginForm">
+        <div class="field">
+          <label for="email">Email</label>
+          <input class="sc-input" id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input class="sc-input" id="password" type="password" autocomplete="current-password" placeholder="Password" required>
+        </div>
+        <div class="login-actions">
+          <button class="sc-btn sc-btn-primary" type="submit" id="loginBtn">Sign in</button>
+        </div>
+      </form>
+    </div>
+
+    <p class="login-foot">Spec Console</p>
+  </div>
+
+  <script src="/lib/runtime-config.js"></script>
+  <script src="/lib/org.js"></script>
+  <script src="/lib/demo-bootstrap.js"></script>
+  <script src="/lib/auth.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const redirect = params.get("redirect") || "/index.html";
+    const cfg = window.SPEC_CONSOLE_CONFIG || {};
+
+    if (cfg.demoMode) {
+      document.getElementById("demoCreds").hidden = false;
+      document.querySelector(".login-brand p").textContent = "Local demo · Forms & status validation";
+      document.getElementById("loginSub").textContent = "Sign in with the demo account below.";
+      document.querySelector(".login-foot").textContent = "Spec Console · Open-source demo";
+      const seed = cfg.defaultUser || {};
+      if (seed.email) {
+        document.getElementById("demoEmail").textContent = seed.email;
+        document.getElementById("email").value = seed.email;
+        document.getElementById("password").value = "demo";
+      }
+    }
+
+    (async () => {
+      const session = await Auth.getSessionAsync();
+      if (session?.userId) {
+        location.replace(redirect.startsWith("/") ? redirect : "/index.html");
+        return;
+      }
+      if (!(await Auth.isSupabaseMode())) {
+        Auth.ensureSeeded();
+        if (cfg.demoMode && cfg.autoSeedDemo && window.DemoBootstrap) {
+          await DemoBootstrap.autoSeedIfNeeded();
+        }
+      }
+    })();
+
+    const form = document.getElementById("loginForm");
+    const errorEl = document.getElementById("loginError");
+    const btn = document.getElementById("loginBtn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorEl.classList.remove("show");
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+
+      const result = await Auth.login(
+        document.getElementById("email").value,
+        document.getElementById("password").value
+      );
+
+      if (!result.ok) {
+        errorEl.textContent = result.error;
+        errorEl.classList.add("show");
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+        return;
+      }
+
+      location.replace(redirect.startsWith("/") ? redirect : "/index.html");
+    });
+  </script>
+</body>
+</html>

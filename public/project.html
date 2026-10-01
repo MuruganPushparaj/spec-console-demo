@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project — Spec Console</title>
+  <link rel="stylesheet" href="/lib/design-system.css">
+  <style>
+    .project-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .project-header h1 { margin: 0 0 6px; font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+    .project-header p { margin: 0; color: var(--text-secondary); max-width: 560px; }
+    .project-owner-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .project-owner-actions .danger { color: var(--red); }
+    .project-owner-actions .danger:hover { background: #fef2f2; color: var(--red); }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4);
+      display: none; align-items: center; justify-content: center; padding: 20px; z-index: 150;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface); border-radius: var(--radius-lg);
+      width: 100%; max-width: 440px; padding: 24px; box-shadow: var(--shadow-md);
+    }
+    .modal h2 { margin: 0 0 6px; font-size: 18px; }
+    .modal p { margin: 0 0 16px; color: var(--text-secondary); font-size: 13px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    .delete-confirm {
+      margin-top: 14px; padding: 12px 14px; border: 1px solid #fecaca;
+      background: #fef2f2; border-radius: var(--radius-md); font-size: 13px;
+    }
+    .delete-confirm p { margin: 0 0 10px; color: var(--text-secondary); }
+    .delete-confirm .row { display: flex; gap: 8px; }
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 960px) { .modules-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 720px) { .modules-grid { grid-template-columns: 1fr; } }
+    .module-card {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .module-card:hover { box-shadow: var(--shadow-md); }
+    .module-card.forms:hover { border-color: var(--brand); }
+    .module-card.status:hover { border-color: var(--violet); }
+    .module-card.prototype:hover { border-color: var(--amber); }
+    .module-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: grid; place-items: center; font-size: 20px; margin-bottom: 14px;
+    }
+    .module-card.forms .module-icon { background: var(--brand-soft); }
+    .module-card.status .module-icon { background: var(--violet-soft); }
+    .module-card.prototype .module-icon { background: var(--amber-soft); }
+    .module-card h2 { margin: 0 0 8px; font-size: 18px; font-weight: 650; }
+    .module-card p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; flex: 1; }
+    .module-card .arrow { margin-top: 16px; font-size: 13px; font-weight: 600; }
+    .module-card.forms .arrow { color: var(--brand); }
+    .module-card.status .arrow { color: var(--violet); }
+    .module-card.prototype .arrow { color: var(--amber); }
+    .section-title {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text-muted); font-weight: 650; margin: 0 0 12px;
+    }
+    .members-preview { padding: 16px 18px; }
+    .member-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .member-row:last-child { border-bottom: none; }
+    .member-row .sc-avatar { width: 32px; height: 32px; font-size: 12px; }
+    .member-row .nm { flex: 1; font-weight: 600; }
+    .member-row .email { color: var(--text-muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+  <main class="sc-page" id="main"></main>
+
+  <div class="modal-backdrop" id="editProjectModal">
+    <div class="modal">
+      <h2>Edit project</h2>
+      <p>Update the project name and description.</p>
+      <div class="field">
+        <label for="editProjectName">Project name</label>
+        <input class="sc-input" id="editProjectName" placeholder="Project name">
+      </div>
+      <div class="field">
+        <label for="editProjectDesc">Description (optional)</label>
+        <input class="sc-input" id="editProjectDesc" placeholder="What this project covers">
+      </div>
+      <div class="modal-actions">
+        <button class="sc-btn sc-btn-secondary" id="cancelEditProject" type="button">Cancel</button>
+        <button class="sc-btn sc-btn-primary" id="saveEditProject" type="button">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/lib/runtime-config.js"></script>
+  <script src="/lib/org.js"></script>
+  <script src="/lib/auth.js"></script>
+  <script src="/lib/shell.js"></script>
+  <script>
+  (async function () {
+  if (!(await Auth.guardPage())) return;
+    const projectId = Org.getProjectIdFromUrl();
+    if (!projectId) { window.location.replace("/index.html"); return; }
+    const ctx = Shell.mount("app-header", { page: "project", projectId, requireProject: true });
+    if (!ctx) { window.location.replace("/index.html?error=no-access"); return; }
+
+    const params = new URLSearchParams(location.search);
+    if (params.get("error") === "readonly") Shell.toast("Read-only access — editing is disabled");
+    if (params.get("error") === "not-owner") Shell.toast("Only project owners can manage members");
+
+    let showDeleteConfirm = false;
+
+    function openEditModal() {
+      const project = Org.getProject(projectId);
+      document.getElementById("editProjectName").value = project?.name || "";
+      document.getElementById("editProjectDesc").value = project?.description || "";
+      document.getElementById("editProjectModal").classList.add("open");
+      document.getElementById("editProjectName").focus();
+    }
+
+    function closeEditModal() {
+      document.getElementById("editProjectModal").classList.remove("open");
+    }
+
+    function render() {
+      const org = Org.loadOrg();
+      const project = Org.getProject(projectId, org);
+      if (!project) { window.location.replace("/index.html"); return; }
+      const isOwner = Org.isProjectOwner(projectId, undefined, org);
+
+      document.title = `${project.name} — Spec Console`;
+
+      document.getElementById("main").innerHTML = `
+        <div class="project-header">
+          <div>
+            <h1>${Shell.esc(project.name)}</h1>
+            <p>${Shell.esc(project.description || "No description yet.")}</p>
+            ${isOwner ? `<div class="project-owner-actions">
+              <button class="sc-btn sc-btn-ghost sc-btn-sm" id="editProjectBtn" type="button">Edit project</button>
+              <button class="sc-btn sc-btn-ghost sc-btn-sm danger" id="deleteProjectBtn" type="button">Delete project</button>
+            </div>
+            ${showDeleteConfirm ? `<div class="delete-confirm">
+              <p>Delete <strong>${Shell.esc(project.name)}</strong>? This removes all forms, status, and prototype data for this project.</p>
+              <div class="row">
+                <button class="sc-btn sc-btn-secondary sc-btn-sm" id="cancelDeleteProject" type="button">Cancel</button>
+                <button class="sc-btn sc-btn-primary sc-btn-sm" id="confirmDeleteProject" type="button" style="background:var(--red);border-color:var(--red)">Delete project</button>
+              </div>
+            </div>` : ""}` : ""}
+          </div>
+        </div>
+
+        <div class="modules-grid">
+          <a class="sc-card module-card forms" href="/forms.html?p=${encodeURIComponent(projectId)}">
+            <div class="module-icon">📋</div>
+            <h2>Forms</h2>
+            <p>Specify fields, buttons, validations, and exports — guided, no silent blanks.</p>
+            <div class="arrow">Open Forms →</div>
+          </a>
+          <a class="sc-card module-card status" href="/status-validation.html?p=${encodeURIComponent(projectId)}">
+            <div class="module-icon">⟳</div>
+            <h2>Status validation</h2>
+            <p>Define status machines, transitions, preconditions, and impact maps.</p>
+            <div class="arrow">Open Status validation →</div>
+          </a>
+          <a class="sc-card module-card prototype" href="/prototype.html?p=${encodeURIComponent(projectId)}">
+            <div class="module-icon">▣</div>
+            <h2>Prototype</h2>
+            <p>Upload HTML prototypes, preview them here, and share a client link.</p>
+            <div class="arrow">Open Prototype →</div>
+          </a>
+        </div>
+
+        <div class="section-title">Team on this project</div>
+        <div class="sc-card members-preview">
+          ${project.members.map((m) => {
+            const u = org.users.find((x) => x.id === m.userId);
+            if (!u) return "";
+            return `<div class="member-row">
+              <span class="sc-avatar">${Org.initials(u.name)}</span>
+              <div class="nm">${Shell.esc(u.name)}<div class="email">${Shell.esc(u.email)}</div></div>
+              <span class="sc-badge ${m.isOwner ? "sc-badge-owner" : m.access === "write" ? "sc-badge-write" : "sc-badge-read"}">${Org.memberRoleLabel(m)}</span>
+            </div>`;
+          }).join("") || '<p style="margin:0;color:var(--text-secondary)">No members assigned.</p>'}
+          ${isOwner ? `<div style="margin-top:12px"><a class="sc-btn sc-btn-ghost sc-btn-sm" href="/settings/project.html?p=${encodeURIComponent(projectId)}">Manage members →</a></div>` : ""}
+        </div>`;
+
+      if (isOwner) {
+        document.getElementById("editProjectBtn").onclick = openEditModal;
+        document.getElementById("deleteProjectBtn").onclick = () => { showDeleteConfirm = true; render(); };
+        if (showDeleteConfirm) {
+          document.getElementById("cancelDeleteProject").onclick = () => { showDeleteConfirm = false; render(); };
+          document.getElementById("confirmDeleteProject").onclick = () => {
+            const result = Org.deleteProject(projectId);
+            if (!result.ok) return Shell.toast(result.error);
+            window.location.href = "/index.html";
+          };
+        }
+      }
+    }
+
+    document.getElementById("cancelEditProject").onclick = closeEditModal;
+    document.getElementById("editProjectModal").onclick = (e) => { if (e.target.id === "editProjectModal") closeEditModal(); };
+    document.getElementById("saveEditProject").onclick = () => {
+      const name = document.getElementById("editProjectName").value.trim();
+      if (!name) return Shell.toast("Enter a project name");
+      const description = document.getElementById("editProjectDesc").value.trim();
+      const result = Org.updateProject(projectId, { name, description });
+      if (!result.ok) return Shell.toast(result.error);
+      closeEditModal();
+      Shell.toast("Project updated");
+      Shell.mount("app-header", { page: "project", projectId, requireProject: true });
+      render();
+    };
+    document.getElementById("editProjectName").onkeydown = (e) => {
+      if (e.key === "Enter") document.getElementById("saveEditProject").click();
+      if (e.key === "Escape") closeEditModal();
+    };
+
+    render();
+  })();
+  </script>
+</body>
+</html>

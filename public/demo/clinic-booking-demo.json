@@ -1,0 +1,370 @@
+{
+  "project": {
+    "id": "demo-clinic",
+    "name": "Clinic Booking Platform",
+    "description": "Demo project — forms spec, status validation, and client prototype for a multi-specialty clinic booking platform."
+  },
+  "workspace": {
+    "forms": [
+      {
+        "id": "demo-booking-form",
+        "projectId": "demo-clinic",
+        "name": "Appointment booking & intake",
+        "notes": "Problem this form solves: Patients currently book appointments by phone, leading to double-bookings, missing insurance details, and long hold times. This form captures everything needed to schedule a visit, verify eligibility, and route the patient to the right department — in one guided flow.\n\nOpen questions for client:\n• Should telehealth slots share the same calendar as in-person?\n• Is insurance mandatory before booking, or optional at check-in?",
+        "updatedAt": 1727635200000,
+        "fields": [
+          {
+            "id": "f-patient-name",
+            "type": "shortText",
+            "key": "patient_full_name",
+            "label": "Patient full name",
+            "props": {
+              "required": "Required",
+              "defaultValue": "",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Please enter the patient's legal name as on ID",
+              "minLen": "2",
+              "maxLen": "120",
+              "pattern": "Letters only"
+            }
+          },
+          {
+            "id": "f-email",
+            "type": "email",
+            "key": "contact_email",
+            "label": "Contact email",
+            "props": {
+              "required": "Required",
+              "defaultValue": "",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Enter a valid email — confirmation is sent here",
+              "multi": "Single",
+              "domainPolicy": "Any domain"
+            }
+          },
+          {
+            "id": "f-phone",
+            "type": "phone",
+            "key": "mobile_number",
+            "label": "Mobile number",
+            "props": {
+              "required": "Required",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Enter a valid 10-digit mobile number",
+              "region": "India — 10 digits",
+              "cc": "Yes"
+            }
+          },
+          {
+            "id": "f-age",
+            "type": "number",
+            "key": "patient_age",
+            "label": "Patient age",
+            "props": {
+              "required": "Required",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Age must be between 0 and 120",
+              "min": "0",
+              "max": "120",
+              "decimals": "Integer only",
+              "negative": "No",
+              "unit": "years"
+            }
+          },
+          {
+            "id": "f-appt-date",
+            "type": "date",
+            "key": "preferred_date",
+            "label": "Preferred appointment date",
+            "props": {
+              "required": "Required",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Choose a date within the next 30 days",
+              "minDate": "Today",
+              "maxDate": "Relative",
+              "maxDateVal": "+30d",
+              "time": "Date + time"
+            }
+          },
+          {
+            "id": "f-department",
+            "type": "dropdown",
+            "key": "department",
+            "label": "Department",
+            "props": {
+              "required": "Required",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Select a department to continue",
+              "source": "Static list",
+              "options": ["General Medicine", "Cardiology", "Orthopedics", "Dermatology", "Pediatrics", "ENT"],
+              "allowOther": "No",
+              "searchable": "Yes"
+            }
+          },
+          {
+            "id": "f-doctor",
+            "type": "lookup",
+            "key": "preferred_doctor",
+            "label": "Preferred doctor",
+            "props": {
+              "required": "Optional",
+              "editability": "Conditionally editable",
+              "editCond": "department is selected",
+              "visibility": "Conditional",
+              "visCond": "department ≠ Emergency",
+              "errorMsg": "Select a doctor from the list or leave blank for auto-assignment",
+              "dataset": "Doctors API — filtered by department + availability on preferred_date",
+              "minChars": "2"
+            }
+          },
+          {
+            "id": "f-visit-type",
+            "type": "radio",
+            "key": "visit_type",
+            "label": "Visit type",
+            "props": {
+              "required": "Required",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Choose in-person or telehealth",
+              "options": ["In-person visit", "Telehealth (video call)"]
+            }
+          },
+          {
+            "id": "f-symptoms",
+            "type": "multiselect",
+            "key": "symptoms",
+            "label": "Symptoms or concerns",
+            "props": {
+              "required": "Optional",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "options": ["Fever", "Pain", "Follow-up visit", "Lab results review", "Prescription refill", "Other"],
+              "minSel": "0",
+              "maxSel": "5",
+              "allowOther": "Yes"
+            }
+          },
+          {
+            "id": "f-fee",
+            "type": "currency",
+            "key": "consultation_fee",
+            "label": "Consultation fee",
+            "props": {
+              "required": "Required",
+              "editability": "Read-only",
+              "visibility": "Always visible",
+              "errorMsg": "Fee is calculated from department and visit type",
+              "ccy": "INR",
+              "min": "0",
+              "max": "50000",
+              "decimals": "2"
+            }
+          },
+          {
+            "id": "f-insurance",
+            "type": "file",
+            "key": "insurance_card",
+            "label": "Insurance card",
+            "props": {
+              "required": "Optional",
+              "editability": "Always editable",
+              "visibility": "Conditional",
+              "visCond": "visit_type = In-person visit",
+              "errorMsg": "Upload a clear photo or PDF of the insurance card",
+              "types": "pdf, jpg, png",
+              "maxSize": "5",
+              "multiFile": "Single"
+            }
+          },
+          {
+            "id": "f-notes",
+            "type": "longText",
+            "key": "additional_notes",
+            "label": "Additional notes for the doctor",
+            "props": {
+              "required": "Optional",
+              "defaultValue": "",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "Keep notes under 500 characters",
+              "maxLen": "500"
+            }
+          },
+          {
+            "id": "f-wait-time",
+            "type": "calculated",
+            "key": "estimated_wait",
+            "label": "Estimated wait time",
+            "props": {
+              "required": "Optional",
+              "editability": "Read-only",
+              "visibility": "Always visible",
+              "formula": "AVG(doctor.queue_length) × slot_duration for selected department + preferred_date"
+            }
+          },
+          {
+            "id": "f-medications",
+            "type": "table",
+            "key": "current_medications",
+            "label": "Current medications",
+            "props": {
+              "required": "Optional",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "mode": "Repeatable (users add rows)",
+              "minRows": "0",
+              "maxRows": "10",
+              "addRowText": "Add medication",
+              "columns": [
+                {
+                  "name": "Medication name",
+                  "type": "Free text",
+                  "mandatory": "Required",
+                  "maxLen": "100",
+                  "pattern": "Any"
+                },
+                {
+                  "name": "Dosage",
+                  "type": "Number",
+                  "mandatory": "Required",
+                  "min": "0",
+                  "max": "9999",
+                  "decimals": "2",
+                  "unit": "mg"
+                },
+                {
+                  "name": "Frequency",
+                  "type": "Dropdown",
+                  "mandatory": "Required",
+                  "options": "Once daily\nTwice daily\nThree times daily\nAs needed",
+                  "allowOther": "No"
+                },
+                {
+                  "name": "Since",
+                  "type": "Date",
+                  "mandatory": "Optional",
+                  "minDate": "Relative",
+                  "maxDate": "Today",
+                  "timeOpt": "Date only"
+                }
+              ]
+            }
+          },
+          {
+            "id": "f-terms",
+            "type": "checkbox",
+            "key": "terms_accepted",
+            "label": "I agree to the clinic terms and privacy policy",
+            "props": {
+              "required": "Required",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "errorMsg": "You must accept the terms to book",
+              "defaultState": "Unchecked / off"
+            }
+          }
+        ],
+        "buttons": [
+          {
+            "id": "btn-save-draft",
+            "notes": "Draft saves locally for 7 days — patient can resume from email link.",
+            "props": {
+              "label": "Save draft",
+              "style": "Secondary",
+              "enabledWhen": "Always",
+              "validates": "1. Patient name format (if filled)\n2. Email format (if filled)\n— no required-field check for draft",
+              "action": "POST /api/appointments/draft — upsert partial form state",
+              "onSuccess": "Toast: 'Draft saved' + update last-saved timestamp in header",
+              "onError": "Toast: 'Could not save — check connection' + keep form data in browser",
+              "confirm": "No"
+            }
+          },
+          {
+            "id": "btn-book",
+            "notes": "Primary CTA — triggers slot hold for 10 minutes while payment completes.",
+            "props": {
+              "label": "Book appointment",
+              "style": "Primary",
+              "enabledWhen": "All required fields valid",
+              "validates": "1. All required fields present\n2. Email + phone format\n3. preferred_date within allowed window\n4. terms_accepted = true\n5. Doctor availability check (API)\n6. Insurance file type/size (if uploaded)",
+              "action": "POST /api/appointments — create booking + hold slot + send confirmation email/SMS",
+              "onSuccess": "Redirect to /booking/confirmation?id={bookingId} + show summary + calendar invite",
+              "onError": "Inline field errors for validation failures; modal for slot-unavailable with 'Pick another time' CTA",
+              "confirm": "Yes"
+            }
+          },
+          {
+            "id": "btn-cancel",
+            "props": {
+              "label": "Cancel",
+              "style": "Link",
+              "enabledWhen": "Always",
+              "validates": "None",
+              "action": "Navigate to /departments — discard unsaved changes",
+              "onSuccess": "Return to department listing",
+              "onError": "If unsaved changes: show 'Discard changes?' confirmation dialog",
+              "confirm": "No"
+            }
+          }
+        ]
+      },
+      {
+        "id": "demo-feedback-form",
+        "projectId": "demo-clinic",
+        "name": "Post-visit feedback",
+        "notes": "Short satisfaction survey sent 2 hours after appointment completion via SMS link.",
+        "updatedAt": 1727635200000,
+        "fields": [
+          {
+            "id": "f-rating",
+            "type": "radio",
+            "key": "overall_rating",
+            "label": "Overall experience",
+            "props": {
+              "required": "Required",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "options": ["Excellent", "Good", "Average", "Poor"]
+            }
+          },
+          {
+            "id": "f-feedback",
+            "type": "longText",
+            "key": "written_feedback",
+            "label": "What could we improve?",
+            "props": {
+              "required": "Optional",
+              "editability": "Always editable",
+              "visibility": "Always visible",
+              "maxLen": "300"
+            }
+          }
+        ],
+        "buttons": [
+          {
+            "id": "btn-submit-feedback",
+            "props": {
+              "label": "Submit feedback",
+              "style": "Primary",
+              "enabledWhen": "All required fields valid",
+              "validates": "1. overall_rating selected",
+              "action": "POST /api/feedback",
+              "onSuccess": "Thank-you screen + close",
+              "onError": "Retry prompt",
+              "confirm": "No"
+            }
+          }
+        ]
+      }
+    ],
+    "activeForm": "demo-booking-form",
+    "tab": "fields"
+  }
+}

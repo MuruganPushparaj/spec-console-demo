@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Process Validation — v3</title>
+<style>
+  :root{
+    --bg:#f6f7f5; --panel:#fff; --ink:#1c2420; --ink-soft:#6b746e; --ink-faint:#9aa39c;
+    --line:#e6e8e4; --line-strong:#cfd4ce;
+    --green:#2f8f5b; --green-soft:#e8f4ed;
+    --red:#c0473e; --red-soft:#fae9e7;
+    --amber:#b07d20; --amber-soft:#f7eed8;
+    --blue:#3a6ea5; --blue-soft:#eaf1f8;
+    --violet:#7a52a3; --violet-soft:#f0eaf7;
+    --mono:"SFMono-Regular",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55}
+  .app{display:flex;gap:0;min-height:100vh;max-width:1200px;margin:0 auto}
+  .muted{color:var(--ink-soft)} .faint{color:var(--ink-faint)}
+  .mono{font-family:var(--mono);font-size:11px}
+  .sel{font:inherit;border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;background:#fff}
+  .side{flex:0 0 262px;border-right:1px solid var(--line);background:#fbfcfb;padding:16px 14px;position:sticky;top:0;align-self:flex-start;height:100vh;overflow:auto}
+  .main{flex:1;min-width:0;padding:20px 22px 90px}
+  @media(max-width:760px){.app{flex-direction:column}.side{flex:none;width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line)}.main{padding:16px}}
+
+  .sidehead{margin-bottom:14px}
+  .sidehead .sel{width:100%;font-weight:600}
+  .sidebtns{display:flex;gap:6px;margin-top:8px}
+  .sidebtns .btn{flex:1}
+
+  .tree{display:flex;flex-direction:column;gap:2px}
+  .t-ent{margin-top:8px}
+  .t-entrow{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:7px}
+  .t-entrow .nm{font-weight:700;font-size:13px;flex:1;cursor:default}
+  .t-dim{display:flex;align-items:center;gap:7px;padding:6px 8px 6px 20px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--ink-soft)}
+  .t-dim:hover{background:#f1f3f0}
+  .t-dim.active{background:var(--violet-soft);color:var(--violet);font-weight:600}
+  .t-dim .nm{flex:1}
+  .t-dim .cnt{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+  .minibtn{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;padding:2px 3px;border-radius:5px;line-height:1}
+  .minibtn:hover{color:var(--ink);background:#eceeea}
+  .minibtn.del:hover{color:var(--red)}
+  .confirmdel{display:inline-flex;gap:4px;align-items:center;font-size:11px;color:var(--red)}
+  .confirmdel button{border:1px solid var(--line-strong);background:#fff;border-radius:5px;padding:1px 6px;cursor:pointer;font-size:11px}
+  .confirmdel .yes{border-color:var(--red);color:var(--red)}
+  .renameinput{font:inherit;font-size:13px;border:1px solid var(--blue);border-radius:6px;padding:3px 6px;width:100%}
+
+  .mainhead{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .crumb{font-size:15px;font-weight:700}
+  .crumb .sep{color:var(--ink-faint);font-weight:400;margin:0 6px}
+  .crumb .ent{color:var(--ink-soft);font-weight:600}
+  .btn{font:inherit;border:1px solid var(--line-strong);background:#fff;border-radius:8px;padding:6px 11px;cursor:pointer}
+  .btn:hover{border-color:var(--ink-soft)}
+  .btn.sub{font-size:12px;padding:4px 9px}
+  .btn.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn.ghost{border-style:dashed;color:var(--ink-soft)}
+  .xbtn{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
+  .xbtn:hover{color:var(--red)}
+  .spacer{margin-left:auto}
+
+  /* breadcrumb pills */
+  .pills{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .pill-tab{font:inherit;border:1px solid var(--line-strong);background:#fff;border-radius:999px;padding:5px 13px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+  .pill-tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .pill-tab.dim.active{background:var(--violet);border-color:var(--violet)}
+  .pill-tab .x{opacity:.55} .pill-tab .x:hover{opacity:1}
+  .rowlabel{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);width:58px;flex:0 0 58px}
+  .pillrow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden}
+  .chead{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line)}
+  .chead h2{font-size:14px;margin:0}
+  .cbody{padding:13px 15px}
+  .tag{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:2px 7px}
+
+  input.ctl,select.ctl,textarea.ctl{font:inherit;border:1px solid var(--line-strong);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);min-width:0;width:100%}
+  textarea.ctl{resize:vertical;min-height:36px}
+  .ctl:focus{outline:2px solid var(--blue-soft);border-color:var(--blue)}
+  .ctl.ghost,.ctl.ghost::placeholder{color:var(--ink-faint)}
+  .ctl.ghost{background:#fcfcfb}
+
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--line-strong)}
+  .dot.init{background:var(--green)} .dot.term{background:var(--red)}
+
+  /* statuses card = a plain neutral list */
+  .card.statuses .chead{background:#fbfcfb}
+  .srow{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;margin-bottom:6px;cursor:grab}
+  .srow.init{border-left:3px solid var(--green)} .srow.term{border-right:3px solid var(--red)}
+  .srow.dragging{opacity:.35} .srow.over{border-color:var(--violet);box-shadow:0 0 0 2px var(--violet-soft)}
+  .srow.broken{border-color:var(--red);background:var(--red-soft)}
+  .grip{color:var(--line-strong)} .order{font-family:var(--mono);font-size:11px;color:var(--ink-faint);width:16px}
+  .sname{font-weight:600}
+  .breaktag{font-size:10px;color:#fff;background:var(--red);border-radius:4px;padding:1px 6px;text-transform:uppercase;letter-spacing:.04em}
+  .rolebtn{font-size:11px;border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:2px 8px;cursor:pointer;color:var(--ink-soft)}
+  .rolebtn.on.start{border-color:var(--green);color:var(--green);background:var(--green-soft)}
+  .rolebtn.on.end{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+  .flow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:6px}
+  .fchip{font-size:12px;border:1px solid var(--line-strong);border-radius:999px;padding:2px 9px;background:#fff}
+  .fchip.init{border-color:var(--green);background:var(--green-soft)} .fchip.term{border-color:var(--red);background:var(--red-soft)}
+  .arr{color:var(--ink-faint)}
+
+  /* transitions card = distinct: tinted surface + boxed transitions */
+  .card.transitions{border-color:var(--violet-soft)}
+  .card.transitions .chead{background:var(--violet-soft)}
+  .card.transitions .cbody{background:#faf9fc}
+  .trow{border:1px solid var(--line-strong);border-left:3px solid var(--violet);border-radius:10px;margin-bottom:10px;background:#fff;box-shadow:0 1px 2px rgba(30,20,50,.05)}
+  .trow.expanded{box-shadow:0 3px 12px rgba(90,60,140,.14);border-color:var(--violet)}
+  .thead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 12px;cursor:pointer}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;border:1px solid var(--line-strong);background:#fff}
+  .kind{font-size:10px;text-transform:uppercase;padding:2px 7px;border-radius:5px}
+  .kind.actor{background:var(--blue-soft);color:var(--blue)} .kind.automatic{background:var(--amber-soft);color:var(--amber)}
+  .trigtext{font-size:12px;color:var(--ink-soft)}
+  .impchip{font-size:11px;border:1px solid var(--blue);color:var(--blue);background:var(--blue-soft);border-radius:999px;padding:1px 8px}
+  .prechip{font-size:11px;border:1px solid var(--violet);color:var(--violet);background:var(--violet-soft);border-radius:999px;padding:1px 8px}
+  .consider{font-size:11px;color:var(--ink-faint);border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:var(--bg)}
+
+  .tbody{display:none;border-top:1px solid var(--line);padding:10px 14px 14px;background:var(--violet-soft);border-radius:0 0 8px 8px}
+  .tbody.open{display:block}
+  .ess{display:grid;grid-template-columns:1fr 1fr 150px;gap:9px;margin:2px 0 4px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px}
+  .field{margin-bottom:0}
+  .field label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:3px}
+  .qsection-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--violet);font-weight:700;margin:14px 2px 2px}
+  .notesblock{margin-top:12px;background:#fff;border:1px dashed var(--line-strong);border-radius:9px;padding:11px}
+  .notesblock label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:5px}
+  .notechip{font-size:12px}
+
+  .stage{margin-top:8px;border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}
+  .q{margin-bottom:11px}
+  .q>label{display:block;font-size:12px;color:var(--ink);margin-bottom:4px}
+
+  .chiptoggle{display:flex;gap:6px;flex-wrap:wrap}
+  .ptoggle{font-size:12px;border:1px solid var(--line-strong);border-radius:999px;padding:3px 11px;cursor:pointer;background:#fff;color:var(--ink-soft)}
+  .ptoggle.on{border-color:var(--blue);background:var(--blue-soft);color:var(--blue);font-weight:600}
+
+  .lrow{display:flex;gap:7px;align-items:center;margin-bottom:6px}
+  .lrow .ctl{flex:1}
+  .addrow{font-size:12px;color:var(--ink-soft);border:1px dashed var(--line-strong);background:#fff;border-radius:7px;padding:5px 10px;cursor:pointer}
+  .addrow:hover{border-color:var(--ink-soft);color:var(--ink)}
+
+  .reschips{display:flex;gap:6px;flex-wrap:wrap}
+  .rchip{font-size:12px;border:1px solid var(--line-strong);border-radius:7px;padding:3px 10px;cursor:pointer;background:#fff;color:var(--ink-soft)}
+  .rchip.on[data-v="confirmed"]{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+  .rchip.on[data-v="assumed"]{border-color:var(--amber);background:var(--amber-soft);color:var(--amber)}
+  .rchip.on[data-v="na"]{border-color:var(--line);color:var(--line-strong);text-decoration:line-through}
+  .ynrow{display:flex;gap:7px;align-items:center}
+  .ynrow select.ctl{width:90px;flex:0 0 90px}
+  .revflag{font-size:11px;color:var(--violet);margin-top:5px}
+
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(20,28,24,.3);display:none;align-items:center;justify-content:center;padding:20px;z-index:30}
+  .modal.open{display:flex}
+  .mcard{background:#fff;border-radius:14px;max-width:560px;width:100%;padding:20px 22px;box-shadow:0 18px 50px rgba(0,0,0,.22);max-height:85vh;overflow:auto}
+  .mcard h3{margin:0 0 4px;font-size:16px}
+  .mclose{float:right;border:none;background:none;font-size:20px;cursor:pointer;color:var(--ink-soft)}
+  .listcol{margin-top:12px}
+  .listitem{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}.ess{grid-template-columns:1fr}}
+
+  .impmap{border:1px dashed var(--line-strong);border-radius:10px;padding:12px 14px;background:#fff}
+  .impmap .where{font-weight:600;margin:8px 0 4px} .impmap .where:first-child{margin-top:0}
+  .impmap .il{font-size:13px;padding:3px 0;color:var(--ink-soft)}
+  details>summary{cursor:pointer;font-size:13px;color:var(--ink-soft);padding:6px 0}
+
+  /* quiet structural hint */
+  .softhint{font-size:12px;color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;padding:7px 11px;margin-top:8px;display:flex;gap:7px;align-items:flex-start}
+  .softhint .ic{flex:0 0 auto}
+  /* stage accordion */
+  .stage .eyebrow{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:600;padding:10px 12px}
+  .stage:not(.closed) .eyebrow{background:#fbfbfd;border-bottom:1px solid var(--line)}
+  .stage .eyebrow:hover{background:#f4f3f7}
+  .stage .eyebrow .caret{transition:transform .12s;color:var(--ink-faint);font-size:10px}
+  .stage.closed .eyebrow .caret{transform:rotate(-90deg)}
+  .stage .filled{font-size:10px;color:var(--green);font-weight:600;letter-spacing:0;text-transform:none;margin-left:2px}
+  .stage .stagebody{padding:12px}
+  .stage.closed .stagebody{display:none}
+
+  .qhead{display:flex;align-items:center;gap:8px}
+  .qhead label{flex:1;margin-bottom:0}
+  .confpill{font-size:9px;border-radius:999px;padding:1px 7px;cursor:pointer;border:1px solid;text-transform:uppercase;letter-spacing:.05em;flex:0 0 auto}
+  .confpill.firm{color:var(--green);border-color:var(--green);background:var(--green-soft)}
+  .confpill.assumed{color:var(--amber);border-color:var(--amber);background:var(--amber-soft)}
+  .eyebrow .confpill{margin-left:4px}
+  .assumed-mini{font-size:11px;color:var(--amber)}
+  .checks{border:1px solid var(--amber);background:var(--amber-soft);border-radius:10px;padding:4px 6px;margin-top:10px}
+  .checks summary{color:var(--amber);font-weight:600;padding:7px 9px}
+  .checks ul{margin:0 0 8px;padding:0 16px 0 26px}
+  .checks li{font-size:13px;margin-bottom:5px;color:var(--ink)}
+  .checks.clean{border-color:var(--green);background:var(--green-soft)}
+  .checks.clean summary{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="sidehead">
+      <select class="sel" id="projSel"></select>
+      <div class="sidebtns"><button class="btn sub" id="newProj">+ project</button><button class="btn sub" id="manage">⚙ Lists</button></div>
+    </div>
+    <div class="tree" id="tree"></div>
+    <button class="btn sub ghost" id="addEnt" style="width:100%;margin-top:6px">+ entity</button>
+  </aside>
+
+  <main class="main" id="mainPane">
+    <div class="mainhead">
+      <div class="crumb" id="crumb"></div>
+      <span class="spacer"></span>
+      <span class="mono faint" id="expScope"></span>
+      <button class="btn sub" id="expMd">⬇ Markdown</button>
+      <button class="btn sub" id="expJson">⬇ JSON</button>
+    </div>
+
+    <div class="card statuses">
+      <div class="chead"><span class="tag">this status machine owns</span><h2 id="dimTitle">Statuses</h2><span class="spacer"></span><span class="mono faint">drag to set the forward order</span></div>
+      <div class="cbody">
+        <div id="statusList"></div>
+        <div id="statusHint"></div>
+        <div class="lrow" style="margin-top:8px"><input class="ctl" id="newStatus" placeholder="Add a status"><button class="btn sub" id="addStatus">add</button></div>
+        <div class="flow" id="flow"></div>
+      </div>
+    </div>
+
+    <div class="card transitions">
+      <div class="chead"><span class="tag">references statuses</span><h2>Transitions</h2><span class="spacer"></span><button class="btn sub" id="addTrans">+ transition</button></div>
+      <div class="cbody"><div id="transList"></div><div id="checks"></div></div>
+    </div>
+
+    <details id="impactDetails"><summary>Impact map — what gets affected when a status in this machine changes</summary>
+      <div class="impmap" id="impmap" style="margin-top:6px"></div>
+    </details>
+  </main>
+</div>
+
+<!-- manage lists modal -->
+<div class="modal" id="modal"><div class="mcard">
+  <button class="mclose" id="mclose">×</button>
+  <h3>Project lists</h3>
+  <div class="muted" style="font-size:12px">Maintained once, reused on every transition in this project. One persona list feeds both “who can perform” and “communicate to whom”.</div>
+  <div class="grid2">
+    <div class="listcol"><div class="tag">Personas</div><div id="personaList" style="margin-top:8px"></div>
+      <div class="lrow"><input class="ctl" id="newPersona" placeholder="e.g. Clinician"><button class="btn sub" data-addlist="personas">add</button></div></div>
+    <div class="listcol"><div class="tag">Communications</div><div id="commList" style="margin-top:8px"></div>
+      <div class="lrow"><input class="ctl" id="newComm" placeholder="e.g. Confirmation SMS"><button class="btn sub" data-addlist="comms">add</button></div></div>
+  </div>
+</div></div>
+
+<script>
+/* generic typed prompts (the structured ones — actors, preconditions, comms — are rendered specially) */
+const GQ={
+ integ:{stage:"Trigger",  label:"Integration trigger?",                       type:"yntext", kinds:["actor","automatic"]},
+ datain:{stage:"Data",     label:"Data captured during the transition",        type:"area",   kinds:["actor","automatic"]},
+ dataout:{stage:"Data",    label:"Data produced — and who consumes it",        type:"area",   kinds:["actor","automatic"]},
+ side:{stage:"Effects",    label:"Other side-effects (lock, number, timestamp, capacity)", type:"area", kinds:["actor","automatic"]},
+ rev:{stage:"After",       label:"Reversible? (if yes, a reverse transition is needed)",   type:"yntext", kinds:["actor","automatic"]},
+ oper:{stage:"After",      label:"Amend / reissue / expire / audit?",          type:"text",   kinds:["actor","automatic"]},
+ onfail:{stage:"Failure",  label:"On failure / partial completion — what state then?",     type:"area",   kinds:["actor","automatic"]},
+ concur:{stage:"Failure",  label:"Two actors at once / double-fire?",          type:"res",    kinds:["actor"]},
+ tis:{stage:"Failure",     label:"Max time in source state before auto-action?", type:"text", kinds:["automatic","actor"]},
+};
+const STAGES=["Preconditions","Trigger","Data","Effects","After","Failure"];
+const IMPACT_TYPES=["shows data","triggers action","notifies","calls integration"];
+const RES=["open","confirmed","assumed","na"]; const RESLABEL={open:"open",confirmed:"handled",assumed:"assumed",na:"n/a"};
+/* prompts counted in the gentle "to consider" badge */
+const CONSIDER=["actors","comms","integ","datain","dataout","side","rev","oper","onfail"];
+
+/* ---------------- seed ---------------- */
+function tr(o){return Object.assign({from:"",to:"",kind:"actor",trigger:"",actors:[],pre:[],comms:[],answers:{},impacts:[],conf:{},notes:""},o);}
+const SEED={
+ projects:[{
+  id:"p1", name:"MOC HMS",
+  personas:["Front desk","Clinician","Patient","Supervisor","Billing"],
+  comms:["Confirmation SMS","Reminder","Cancellation notice","Discharge summary ready"],
+  entities:[
+   {id:"e1",name:"Appointment",dims:[
+     {id:"d1",name:"Appointment status",
+      statuses:[{name:"Requested",init:true},{name:"Confirmed"},{name:"Checked-in"},{name:"Completed",term:true}],
+      transitions:[
+        tr({id:"t1",from:"Requested",to:"Confirmed",trigger:"Confirm",actors:["Front desk"],
+            comms:[{comm:"Confirmation SMS",to:"Patient"}],answers:{integ:{yn:"yes",text:"SMS gateway"}}}),
+        tr({id:"t2",from:"Confirmed",to:"Checked-in",trigger:"Check-in",actors:["Front desk"],answers:{datain:{text:"arrival time"}}}),
+        tr({id:"t3",from:"Checked-in",to:"Completed",trigger:"Complete visit",actors:["Clinician"],
+            impacts:[{where:"Discharge Summary",type:"shows data",cond:"after Completed",desc:"visit + treatment data appears"}]}),
+      ]},
+     {id:"d2",name:"Cancellation status",
+      statuses:[{name:"None",init:true},{name:"Cancel requested"},{name:"Cancel approved"},{name:"Cancelled",term:true},{name:"Cancel rejected",term:true}],
+      transitions:[
+        tr({id:"c1",from:"None",to:"Cancel requested",trigger:"Request cancellation",actors:["Patient","Front desk"],
+            pre:[{type:"dimstate",dim:"d1",status:"Confirmed"}]}),
+        tr({id:"c2",from:"Cancel requested",to:"Cancel approved",trigger:"Approve",actors:["Supervisor"],
+            answers:{rev:{yn:"no",text:""}}}),
+        tr({id:"c3",from:"Cancel approved",to:"Cancelled",trigger:"Process",comms:[{comm:"Cancellation notice",to:"Patient"}],
+            impacts:[{where:"Refund",type:"triggers action",cond:"if paid",desc:"opens a refund"}]}),
+      ]},
+   ]},
+   {id:"e2",name:"Refund",dims:[
+     {id:"r1",name:"Insurance status",
+      statuses:[{name:"Not applicable",init:true},{name:"Claim submitted"},{name:"Claim approved",term:true},{name:"Claim rejected",term:true}],
+      transitions:[tr({id:"i1",from:"Not applicable",to:"Claim submitted",trigger:"Submit claim",actors:["Billing"]})]},
+     {id:"r2",name:"Refund status",
+      statuses:[{name:"Pending",init:true},{name:"Processing"},{name:"Paid",term:true},{name:"Failed",term:true}],
+      transitions:[tr({id:"f1",from:"Pending",to:"Processing",trigger:"Start refund",actors:["Billing"],
+                       pre:[{type:"dimstate",dim:"r1",status:"Claim approved"},{type:"text",text:"only if patient had paid"}]})]},
+   ]},
+  ]
+ }]
+};
+
+let M; try{const r=localStorage.getItem("pv-v6");M=r?JSON.parse(r):null;}catch(e){M=null;}
+if(!M){ try{M=structuredClone(SEED);}catch(e){M=JSON.parse(JSON.stringify(SEED));} }
+function save(){try{localStorage.setItem("pv-v6",JSON.stringify(M));}catch(e){}}
+let aP=M.projects[0].id, aE=M.projects[0].entities[0].id, aD=M.projects[0].entities[0].dims[0].id;
+const open=new Set();
+const stageState={};
+const uid=p=>p+Math.random().toString(36).slice(2,6);
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const $=s=>document.querySelector(s);
+const proj=()=>M.projects.find(p=>p.id===aP);
+const ent=()=>proj().entities.find(e=>e.id===aE);
+const dm=()=>ent().dims.find(d=>d.id===aD);
+const dimById=id=>ent().dims.find(d=>d.id===id);
+
+/* ---------------- structural validation (inline) ---------------- */
+function broken(d){
+ const out=new Set(d.transitions.map(t=>t.from)), inn=new Set(d.transitions.map(t=>t.to)), b={};
+ d.statuses.forEach(s=>{
+   if(!s.term&&!out.has(s.name))b[s.name]="dead end";
+   else if(!s.init&&!inn.has(s.name))b[s.name]="unreachable";
+ });
+ return b;
+}
+function applies(t,key){const q=GQ[key];return!q||q.kinds.includes(t.kind);}
+/* ---- confidence (item 1): firm / assumed per answered prompt-group ---- */
+const HAS={
+ precond:t=>t.pre.length>0,
+ actors:t=>t.kind==="actor"&&t.actors.length>0,
+ integ:t=>!!(t.answers.integ&&t.answers.integ.yn),
+ datain:t=>!!(t.answers.datain&&(t.answers.datain.text||'').trim()),
+ dataout:t=>!!(t.answers.dataout&&(t.answers.dataout.text||'').trim()),
+ comms:t=>t.comms.some(c=>c.comm||c.to),
+ side:t=>!!(t.answers.side&&(t.answers.side.text||'').trim()),
+ rev:t=>!!(t.answers.rev&&t.answers.rev.yn),
+ oper:t=>!!(t.answers.oper&&(t.answers.oper.text||'').trim()),
+ onfail:t=>!!(t.answers.onfail&&(t.answers.onfail.text||'').trim()),
+ tis:t=>!!(t.answers.tis&&(t.answers.tis.text||'').trim()),
+ impact:t=>t.impacts.some(im=>im.where),
+};
+const hasGroup=(t,k)=>HAS[k]?HAS[k](t):false;
+const confOf=(t,k)=>(t.conf&&t.conf[k])||'assumed';
+function confPill(t,k){ if(!hasGroup(t,k))return""; const c=confOf(t,k); return `<span class="confpill ${c}" data-conf="${t.id}::${k}">${c}</span>`; }
+function assumedCount(t){return Object.keys(HAS).filter(k=>hasGroup(t,k)&&confOf(t,k)==="assumed").length;}
+
+/* ---- consistency (item 2): provable contradictions ---- */
+function consistency(d){
+ const issues=[]; const names=new Set(d.statuses.map(s=>s.name));
+ d.transitions.forEach(t=>{
+   if(t.from&&!names.has(t.from))issues.push(`“${t.from} → ${t.to||'?'}” starts from a status that no longer exists (renamed or deleted).`);
+   if(t.to&&!names.has(t.to))issues.push(`“${t.from||'?'} → ${t.to}” points to a status that no longer exists.`);
+   if(t.answers.rev&&t.answers.rev.yn==="yes"){const has=d.transitions.some(x=>x.from===t.to&&x.to===t.from);if(!has)issues.push(`“${t.from} → ${t.to}” is marked reversible, but no “${t.to} → ${t.from}” transition exists.`);}
+   t.pre.forEach(pc=>{ if(pc.type==="dimstate"){const od=dimById(pc.dim); if(od&&!od.statuses.some(s=>s.name===pc.status))issues.push(`A precondition on “${t.from} → ${t.to}” needs ${od.name} = “${pc.status}”, but that status no longer exists in ${od.name}.`);}});
+   t.comms.forEach(c=>{ if(c.to&&!proj().personas.includes(c.to))issues.push(`“${t.from} → ${t.to}” notifies “${c.to}”, who is no longer in the persona list.`);});
+   t.actors.forEach(a=>{ if(!proj().personas.includes(a))issues.push(`“${t.from} → ${t.to}” can be performed by “${a}”, who is no longer in the persona list.`);});
+ });
+ const byFrom={}; d.transitions.forEach(t=>{(byFrom[t.from]=byFrom[t.from]||[]).push(t);});
+ Object.keys(byFrom).forEach(f=>{ if(!f)return; const noGuard=byFrom[f].filter(t=>t.pre.length===0); if(noGuard.length>1)issues.push(`${noGuard.length} transitions leave “${f}” with no precondition to tell them apart — which one fires?`);});
+ const seen={}; d.transitions.forEach(t=>{const k=t.from+">"+t.to; if(t.from&&t.to){ if(seen[k])issues.push(`Two transitions both go “${t.from} → ${t.to}”.`); else seen[k]=1;}});
+ return issues;
+}
+function considerCount(t){
+ let n=0;
+ if(!t.actors.length&&t.kind==="actor")n++;
+ if(!t.comms.length)n++;
+ ["integ","datain","dataout","side","rev","oper","onfail"].forEach(k=>{ if(!applies(t,k))return;
+   const a=t.answers[k]||{}; const q=GQ[k];
+   if(q.type==="yntext"){if(!a.yn)n++;} else if(!(a.text||"").trim())n++;
+ });
+ return n;
+}
+
+/* ---------------- render ---------------- */
+let pendingDel=null; // {type:'ent'|'dim', id}
+let renaming=null;   // {type:'ent'|'dim', id}
+const nmCell=(type,id,name)=> (renaming&&renaming.type===type&&renaming.id===id)
+   ? `<input class="renameinput" data-renamecommit="${type}::${id}" value="${esc(name)}" autofocus>`
+   : `<span class="nm">${esc(name)}</span>`;
+function render(){
+ const p=proj();
+ $("#projSel").innerHTML=M.projects.map(x=>`<option value="${x.id}" ${x.id===aP?'selected':''}>${esc(x.name)}</option>`).join("");
+
+ // sidebar tree
+ $("#tree").innerHTML=p.entities.map(e=>{
+   const entDel = pendingDel&&pendingDel.type==='ent'&&pendingDel.id===e.id;
+   const dims=e.dims.map(d=>{
+     const dDel = pendingDel&&pendingDel.type==='dim'&&pendingDel.id===d.id;
+     return `<div class="t-dim ${d.id===aD?'active':''}" data-dim="${d.id}">
+       <span class="dot"></span>${nmCell('dim',d.id,d.name)}
+       ${dDel?`<span class="confirmdel">delete?<button class="yes" data-confirmdel="dim::${d.id}">yes</button><button data-canceldel="1">no</button></span>`
+              :`<button class="minibtn" data-rename="dim::${d.id}" title="rename">✎</button><button class="minibtn del" data-askdel="dim::${d.id}" title="delete">🗑</button>`}
+     </div>`;
+   }).join("");
+   return `<div class="t-ent">
+     <div class="t-entrow">
+       ${nmCell('ent',e.id,e.name)}
+       <button class="minibtn" data-rename="ent::${e.id}" title="rename entity">✎</button>
+       <button class="minibtn" data-adddim="${e.id}" title="add status machine">＋</button>
+       ${entDel?`<span class="confirmdel">delete entity?<button class="yes" data-confirmdel="ent::${e.id}">yes</button><button data-canceldel="1">no</button></span>`
+               :`<button class="minibtn del" data-askdel="ent::${e.id}" title="delete entity">🗑</button>`}
+     </div>${dims}</div>`;
+ }).join("");
+
+ const e=ent(); const d=dm(); if(!d){$("#dimTitle").textContent="—";return;}
+ $("#crumb").innerHTML=`<span class="ent">${esc(e.name)}</span><span class="sep">›</span>${esc(d.name)}`;
+ $("#expScope").textContent="exports this status machine";
+ $("#dimTitle").textContent=d.name+" — statuses";
+
+ const b=broken(d);
+ $("#statusList").innerHTML=d.statuses.map((s,i)=>`
+   <div class="srow ${s.init?'init':''} ${s.term?'term':''}" draggable="true" data-idx="${i}">
+     <span class="grip">⠿</span><span class="order">${i+1}</span>
+     <span class="dot ${s.init?'init':s.term?'term':''}"></span><span class="sname">${esc(s.name)}</span>
+     <span class="spacer"></span>
+     <button class="rolebtn start ${s.init?'on':''}" data-role="init::${esc(s.name)}">start</button>
+     <button class="rolebtn end ${s.term?'on':''}" data-role="term::${esc(s.name)}">end</button>
+     <button class="xbtn" data-dels="${esc(s.name)}">×</button></div>`).join("");
+ // quiet plain-language hints (no jargon, no red alarm)
+ const noOut=Object.keys(b).filter(n=>b[n]==="dead end"), noIn=Object.keys(b).filter(n=>b[n]==="unreachable");
+ let hint="";
+ if(noOut.length)hint+=`<div class="softhint"><span class="ic">↪</span><div><b>${noOut.map(esc).join(", ")}</b> ${noOut.length>1?'have':'has'} no transition leaving — if that's the finish, mark ${noOut.length>1?'them':'it'} as an <b>end</b>; otherwise add a way out.</div></div>`;
+ if(noIn.length)hint+=`<div class="softhint"><span class="ic">↩</span><div>Nothing reaches <b>${noIn.map(esc).join(", ")}</b> yet — add a transition into ${noIn.length>1?'them':'it'}, or it can't be used.</div></div>`;
+ $("#statusHint").innerHTML=hint;
+ $("#flow").innerHTML=d.statuses.map(s=>`<span class="fchip ${s.init?'init':s.term?'term':''}">${esc(s.name)}</span>`).join('<span class="arr">›</span>');
+
+ const opts=v=>`<option value=""></option>`+d.statuses.map(s=>`<option ${v===s.name?'selected':''}>${esc(s.name)}</option>`).join("");
+ $("#transList").innerHTML=d.transitions.map(t=>{
+   const cc=considerCount(t);
+   const impChips=t.impacts.filter(im=>im.where).map(im=>`<span class="impchip">→ ${esc(im.where)}</span>`).join("");
+   const preChips=t.pre.length?`<span class="prechip">${t.pre.length} precondition${t.pre.length>1?'s':''}</span>`:"";
+   return `<div class="trow ${open.has(t.id)?'expanded':''}">
+     <div class="thead" data-toggle="${t.id}">
+       <span class="pill">${esc(t.from)||'?'}</span><span class="arr">→</span><span class="pill">${esc(t.to)||'?'}</span>
+       <span class="kind ${t.kind}">${t.kind}</span>
+       ${t.trigger?`<span class="trigtext">${esc(t.trigger)}</span>`:''}
+       ${preChips} ${impChips}
+       ${t.notes?'<span class="notechip">📝</span>':''}
+       <span class="spacer"></span>
+       ${assumedCount(t)?`<span class="assumed-mini">${assumedCount(t)} assumed</span>`:''}
+       ${cc?`<span class="consider">${cc} to consider</span>`:''}
+       <button class="xbtn" data-delt="${t.id}">×</button>
+     </div>
+     <div class="tbody ${open.has(t.id)?'open':''}" id="tb-${t.id}">${open.has(t.id)?body(t,opts):''}</div>
+   </div>`;
+ }).join("")||'<div class="muted">No transitions yet.</div>';
+
+ // consistency checks (item 2) — quiet, plain-language
+ const issues=consistency(d);
+ $("#checks").innerHTML = issues.length
+   ? `<details class="checks" open><summary>${issues.length} thing${issues.length>1?'s':''} to reconcile — each is a question a developer would otherwise have to ask</summary><ul>${issues.map(i=>`<li>${esc(i)}</li>`).join("")}</ul></details>`
+   : `<details class="checks clean"><summary>✓ Nothing contradicts itself in ${esc(d.name)}</summary><ul><li class="muted">No orphaned statuses, ambiguous branches, missing reverse transitions, or stale references.</li></ul></details>`;
+
+ renderImpact();
+}
+
+function stageWrap(t,name,label,filled,total,inner,pill){
+ const key=t.id+":"+name;
+ const opened = stageState[key]===true; // always collapsed by default
+ return `<div class="stage ${opened?'':'closed'}"><div class="eyebrow" data-stage="${key}">
+   <span class="caret">▾</span>${esc(label)}<span class="filled">${filled?filled+(total?'/'+total:'')+' filled':''}</span>${pill||''}</div>
+   <div class="stagebody">${inner}</div></div>`;
+}
+function body(t,opts){
+ const personas=proj().personas, comms=proj().comms;
+ let h=`<div class="ess">
+   <div class="field"><label>from</label><select class="ctl" data-edit="${t.id}::from">${opts(t.from)}</select></div>
+   <div class="field"><label>to</label><select class="ctl" data-edit="${t.id}::to">${opts(t.to)}</select></div>
+   <div class="field"><label>kind</label><select class="ctl" data-edit="${t.id}::kind"><option ${t.kind==='actor'?'selected':''}>actor</option><option ${t.kind==='automatic'?'selected':''}>automatic</option></select></div>
+ </div>
+ <div class="field" style="margin-top:9px"><label>trigger</label><input class="ctl ${t.trigger?'':'ghost'}" data-edit="${t.id}::trigger" value="${esc(t.trigger)}" placeholder="what fires this — button name, timer, system event"></div>
+ <div class="qsection-label">Walk each section — all collapsed; open only what this move needs</div>`;
+
+ // PRECONDITIONS
+ let pre="";
+ t.pre.forEach((pc,i)=>{
+   pre+=`<div class="lrow"><select class="ctl" style="flex:0 0 180px" data-pre="${t.id}::${i}::type">
+       <option value="text" ${pc.type==='text'?'selected':''}>free text</option>
+       <option value="dimstate" ${pc.type==='dimstate'?'selected':''}>another machine is in state…</option></select>`;
+   if(pc.type==="dimstate"){const others=ent().dims.filter(x=>x.id!==dm().id);
+     pre+=`<select class="ctl" data-pre="${t.id}::${i}::dim">${others.map(x=>`<option value="${x.id}" ${x.id===pc.dim?'selected':''}>${esc(x.name)}</option>`).join("")}</select><span class="muted">=</span>
+         <select class="ctl" data-pre="${t.id}::${i}::status">${(dimById(pc.dim)?.statuses||[]).map(s=>`<option ${s.name===pc.status?'selected':''}>${esc(s.name)}</option>`).join("")}</select>`;
+   } else pre+=`<input class="ctl" data-pre="${t.id}::${i}::text" value="${esc(pc.text||'')}" placeholder="e.g. payment cleared">`;
+   pre+=`<button class="xbtn" data-delpre="${t.id}::${i}">×</button></div>`;
+ });
+ pre+=`<button class="addrow" data-addpre="${t.id}">+ precondition</button>`;
+ h+=stageWrap(t,"Preconditions","Preconditions — what must be true before this fires",t.pre.length,0,pre,confPill(t,"precond"));
+
+ // TRIGGER
+ let trig="";
+ if(t.kind==="actor")trig+=`<div class="q"><div class="qhead"><label>Who can perform this</label>${confPill(t,"actors")}</div><div class="chiptoggle">`+
+     personas.map(p=>`<span class="ptoggle ${t.actors.includes(p)?'on':''}" data-actor="${t.id}::${esc(p)}">${esc(p)}</span>`).join("")+
+     (personas.length?'':'<span class="faint">no personas yet — add them in ⚙ Manage lists</span>')+`</div></div>`;
+ trig+=gqHtml(t,"integ");
+ const trigFilled=(t.actors.length?1:0)+((t.answers.integ&&t.answers.integ.yn)?1:0);
+ h+=stageWrap(t,"Trigger","Trigger — who & what",trigFilled,0,trig);
+
+ // DATA
+ const dataFilled=["datain","dataout"].filter(k=>(t.answers[k]&&t.answers[k].text||'').trim()).length;
+ h+=stageWrap(t,"Data","Data",dataFilled,2,gqHtml(t,"datain")+gqHtml(t,"dataout"));
+
+ // EFFECTS
+ let eff=`<div class="q"><div class="qhead"><label>Communicate</label>${confPill(t,"comms")}</div>`;
+ t.comms.forEach((c,i)=>{eff+=`<div class="lrow">
+     <select class="ctl" data-comm="${t.id}::${i}::comm"><option value=""></option>${comms.map(x=>`<option ${c.comm===x?'selected':''}>${esc(x)}</option>`).join("")}</select><span class="muted">to</span>
+     <select class="ctl" data-comm="${t.id}::${i}::to"><option value=""></option>${personas.map(x=>`<option ${c.to===x?'selected':''}>${esc(x)}</option>`).join("")}</select>
+     <button class="xbtn" data-delcomm="${t.id}::${i}">×</button></div>`;});
+ eff+=`<button class="addrow" data-addcomm="${t.id}">+ communication</button></div>`+gqHtml(t,"side");
+ const effFilled=(t.comms.length?1:0)+((t.answers.side&&t.answers.side.text||'').trim()?1:0);
+ h+=stageWrap(t,"Effects","Effects — communications & side-effects",effFilled,0,eff);
+
+ // AFTER
+ const aftFilled=((t.answers.rev&&t.answers.rev.yn)?1:0)+((t.answers.oper&&t.answers.oper.text||'').trim()?1:0);
+ h+=stageWrap(t,"After","After it lands",aftFilled,2,gqHtml(t,"rev")+gqHtml(t,"oper"));
+
+ // FAILURE
+ const failFilled=["onfail","tis"].filter(k=>(t.answers[k]&&t.answers[k].text||'').trim()).length+((t.answers.concur&&t.answers.concur.res&&t.answers.concur.res!=='open')?1:0);
+ h+=stageWrap(t,"Failure","If it goes wrong",failFilled,0,gqHtml(t,"onfail")+gqHtml(t,"concur")+gqHtml(t,"tis"));
+
+ // IMPACT
+ let imp="";
+ t.impacts.forEach((im,i)=>{imp+=`<div class="lrow">
+     <input class="ctl" data-imp="${t.id}::${i}::where" value="${esc(im.where||'')}" placeholder="where (screen / entity / system)">
+     <select class="ctl" style="flex:0 0 150px" data-imp="${t.id}::${i}::type">${IMPACT_TYPES.map(x=>`<option ${im.type===x?'selected':''}>${x}</option>`).join("")}</select>
+     <button class="xbtn" data-delimp="${t.id}::${i}">×</button></div>
+     <div class="lrow"><input class="ctl" data-imp="${t.id}::${i}::cond" value="${esc(im.cond||'')}" placeholder="condition (optional)" style="flex:0 0 200px">
+       <input class="ctl" data-imp="${t.id}::${i}::desc" value="${esc(im.desc||'')}" placeholder="what happens there"></div>`;});
+ imp+=`<button class="addrow" data-addimp="${t.id}">+ impact</button>`;
+ h+=stageWrap(t,"Impact","Impact — what this move affects elsewhere",t.impacts.filter(x=>x.where).length,0,imp,confPill(t,"impact"));
+ h+=`<div class="notesblock"><label>Notes — anything that doesn't fit a category</label><textarea class="ctl ${t.notes?'':'ghost'}" data-note="${t.id}" placeholder="free notes for this transition…">${esc(t.notes||'')}</textarea></div>`;
+ return h;
+}
+
+function gqHtml(t,key){
+ if(!applies(t,key))return"";
+ const q=GQ[key], a=t.answers[key]||{};
+ let inner;
+ if(q.type==="res"){
+   inner=`<div class="reschips">`+RES.map(v=>`<span class="rchip ${(a.res||'open')===v?'on':''}" data-v="${v}" data-res="${t.id}::${key}">${RESLABEL[v]}</span>`).join("")+`</div>`;
+ } else if(q.type==="yntext"){
+   inner=`<div class="ynrow"><select class="ctl" data-yn="${t.id}::${key}"><option value="" ${!a.yn?'selected':''}>—</option><option ${a.yn==='yes'?'selected':''}>yes</option><option ${a.yn==='no'?'selected':''}>no</option></select>
+     <input class="ctl ${a.text?'':'ghost'}" data-a="${t.id}::${key}::text" value="${esc(a.text||'')}" placeholder="detail"></div>`+
+     (key==="rev"&&a.yn==="yes"?`<div class="revflag">↺ reversible — a reverse transition (${esc(t.to)} → ${esc(t.from)}) should exist.</div>`:"");
+ } else if(q.type==="area"){
+   inner=`<textarea class="ctl ${a.text?'':'ghost'}" data-a="${t.id}::${key}::text" placeholder="${esc(q.label)}">${esc(a.text||'')}</textarea>`;
+ } else {
+   inner=`<input class="ctl ${a.text?'':'ghost'}" data-a="${t.id}::${key}::text" value="${esc(a.text||'')}" placeholder="${esc(q.label)}">`;
+ }
+ return `<div class="q"><div class="qhead"><label>${esc(q.label)}</label>${q.type==="res"?"":confPill(t,key)}</div>${inner}</div>`;
+}
+
+function renderImpact(){
+ const map={};
+ ent().dims.forEach(d=>d.transitions.forEach(t=>t.impacts.forEach(im=>{ if(!im.where)return; (map[im.where]=map[im.where]||[]).push({d,t,im}); })));
+ const keys=Object.keys(map);
+ $("#impmap").innerHTML=keys.length?keys.map(k=>`<div class="where">${esc(k)}</div>`+
+   map[k].map(({d,t,im})=>`<div class="il"><span class="mono">${esc(im.type)}</span> · ${esc(d.name)}: ${esc(t.from)} → ${esc(t.to)}${im.desc?` — ${esc(im.desc)}`:''}</div>`).join("")).join("")
+   :'<div class="muted">No impacts recorded yet. Add them on a transition and this view fills in.</div>';
+}
+
+/* ---------------- manage lists ---------------- */
+function renderLists(){
+ $("#personaList").innerHTML=proj().personas.map((p,i)=>`<div class="listitem">${esc(p)}<span class="spacer"></span><button class="xbtn" data-dellist="personas::${i}">×</button></div>`).join("");
+ $("#commList").innerHTML=proj().comms.map((c,i)=>`<div class="listitem">${esc(c)}<span class="spacer"></span><button class="xbtn" data-dellist="comms::${i}">×</button></div>`).join("");
+}
+
+/* ---------------- events ---------------- */
+document.addEventListener("click",e=>{
+ const t=e.target;
+ // --- navigation tree ---
+ if(t.dataset.rename){const[type,id]=t.dataset.rename.split("::");renaming={type,id};pendingDel=null;render();const inp=document.querySelector(".renameinput");if(inp){inp.focus();inp.select();}return;}
+ if(t.dataset.adddim){const en=proj().entities.find(x=>x.id===t.dataset.adddim);const id=uid("d");en.dims.push({id,name:"New status machine",statuses:[],transitions:[]});aE=en.id;aD=id;save();render();return;}
+ if(t.dataset.askdel){const[type,id]=t.dataset.askdel.split("::");pendingDel={type,id};render();return;}
+ if(t.dataset.canceldel){pendingDel=null;render();return;}
+ if(t.dataset.confirmdel){const[type,id]=t.dataset.confirmdel.split("::");
+   if(type==="ent"){const p=proj();if(p.entities.length>1){p.entities=p.entities.filter(x=>x.id!==id);if(aE===id){aE=p.entities[0].id;aD=ent().dims[0]?.id;}}}
+   else{const en=proj().entities.find(x=>x.dims.some(d=>d.id===id));if(en&&en.dims.length>1){en.dims=en.dims.filter(x=>x.id!==id);if(aD===id){aE=en.id;aD=en.dims[0].id;}}}
+   pendingDel=null;save();render();return;}
+ if(t.id==="addEnt"){const id=uid("e");const did=uid("d");proj().entities.push({id,name:"New entity",dims:[{id:did,name:"Status",statuses:[],transitions:[]}]});aE=id;aD=did;save();render();return;}
+ if(t.id==="newProj"){const id=uid("p");const eid=uid("e"),did=uid("d");M.projects.push({id,name:"New project",personas:[],comms:[],entities:[{id:eid,name:"New entity",dims:[{id:did,name:"Status",statuses:[],transitions:[]}]}]});aP=id;aE=eid;aD=did;save();render();return;}
+ const dimRow=t.closest&&t.closest("[data-dim]");
+ if(dimRow){renaming=null;pendingDel=null;aE=proj().entities.find(en=>en.dims.some(d=>d.id===dimRow.dataset.dim)).id;aD=dimRow.dataset.dim;render();return;}
+
+ const d=dm();
+ if(t.dataset.role){const[r,n]=t.dataset.role.split("::");const s=d.statuses.find(x=>x.name===n);if(r==="init")s.init=!s.init;else s.term=!s.term;save();render();return;}
+ if(t.dataset.dels){d.statuses=d.statuses.filter(s=>s.name!==t.dataset.dels);save();render();return;}
+ if(t.dataset.delt){e.stopPropagation();d.transitions=d.transitions.filter(x=>x.id!==t.dataset.delt);save();render();return;}
+ if(t.dataset.toggle){const id=t.dataset.toggle;const was=open.has(id);open.clear();if(!was)open.add(id);render();return;}
+ if(t.dataset.conf){e.stopPropagation();const[id,k]=t.dataset.conf.split("::");const tr=dm().transitions.find(x=>x.id===id);tr.conf=tr.conf||{};tr.conf[k]=confOf(tr,k)==="firm"?"assumed":"firm";save();render();return;}
+ if(t.closest&&t.closest("[data-stage]")){const k=t.closest("[data-stage]").dataset.stage;stageState[k]=!(stageState[k]===true);render();return;}
+ const T=id=>d.transitions.find(x=>x.id===id);
+ if(t.dataset.res){const[id,k]=t.dataset.res.split("::");T(id).answers[k]={res:t.dataset.v};save();render();return;}
+ if(t.dataset.actor){const[id,p]=t.dataset.actor.split("::");const tr=T(id);const i=tr.actors.indexOf(p);i>-1?tr.actors.splice(i,1):tr.actors.push(p);save();render();return;}
+ if(t.dataset.addpre){T(t.dataset.addpre).pre.push({type:"text",text:""});save();render();return;}
+ if(t.dataset.delpre){const[id,i]=t.dataset.delpre.split("::");T(id).pre.splice(+i,1);save();render();return;}
+ if(t.dataset.addcomm){T(t.dataset.addcomm).comms.push({comm:"",to:""});save();render();return;}
+ if(t.dataset.delcomm){const[id,i]=t.dataset.delcomm.split("::");T(id).comms.splice(+i,1);save();render();return;}
+ if(t.dataset.addimp){T(t.dataset.addimp).impacts.push({where:"",type:IMPACT_TYPES[0],cond:"",desc:""});save();render();return;}
+ if(t.dataset.delimp){const[id,i]=t.dataset.delimp.split("::");T(id).impacts.splice(+i,1);save();render();return;}
+
+ // modal
+ if(t.id==="manage"){renderLists();$("#modal").classList.add("open");return;}
+ if(t.id==="mclose"||t.id==="modal"){$("#modal").classList.remove("open");return;}
+ if(t.dataset.addlist){const k=t.dataset.addlist;const inp=k==="personas"?$("#newPersona"):$("#newComm");const v=inp.value.trim();if(v&&!proj()[k].includes(v))proj()[k].push(v);inp.value="";save();renderLists();return;}
+ if(t.dataset.dellist){const[k,i]=t.dataset.dellist.split("::");proj()[k].splice(+i,1);save();renderLists();render();return;}
+});
+
+document.addEventListener("change",e=>{
+ const t=e.target,d=dm();const T=id=>d.transitions.find(x=>x.id===id);
+ if(t.id==="projSel"){aP=t.value;aE=proj().entities[0].id;aD=ent().dims[0].id;render();return;}
+ if(t.dataset.edit){const[id,f]=t.dataset.edit.split("::");T(id)[f]=t.value;save();render();return;}
+ if(t.dataset.yn){const[id,k]=t.dataset.yn.split("::");const tr=T(id);tr.answers[k]=tr.answers[k]||{};tr.answers[k].yn=t.value;save();render();return;}
+ if(t.dataset.pre){const[id,i,f]=t.dataset.pre.split("::");const pc=T(id).pre[+i];pc[f]=t.value;if(f==="type"&&t.value==="dimstate"){const o=ent().dims.find(x=>x.id!==d.id);pc.dim=o?.id;pc.status=o?.statuses[0]?.name||"";}if(f==="dim")pc.status=dimById(t.value)?.statuses[0]?.name||"";save();render();return;}
+ if(t.dataset.comm){const[id,i,f]=t.dataset.comm.split("::");T(id).comms[+i][f]=t.value;save();render();return;}
+ if(t.dataset.imp){const[id,i,f]=t.dataset.imp.split("::");T(id).impacts[+i][f]=t.value;save();if(f==="where"||f==="type")render();return;}
+});
+document.addEventListener("input",e=>{
+ const t=e.target,d=dm();const T=id=>d.transitions.find(x=>x.id===id);
+ if(t.dataset.a){const[id,k,f]=t.dataset.a.split("::");const tr=T(id);tr.answers[k]=tr.answers[k]||{};tr.answers[k][f]=t.value;save();}
+ if(t.dataset.note){T(t.dataset.note).notes=t.value;save();}
+ if(t.dataset.imp){const[id,i,f]=t.dataset.imp.split("::");T(id).impacts[+i][f]=t.value;save();}
+ if(t.dataset.pre&&t.dataset.pre.endsWith("::text")){const[id,i]=t.dataset.pre.split("::");T(id).pre[+i].text=t.value;save();}
+});
+
+$("#addStatus").onclick=()=>{const v=$("#newStatus").value.trim();if(!v)return;const d=dm();if(!d.statuses.some(s=>s.name===v))d.statuses.push({name:v});$("#newStatus").value="";save();render();};
+document.addEventListener("keydown",e=>{if(e.target.id==="newStatus"&&e.key==="Enter")$("#addStatus").click();});
+$("#addTrans").onclick=()=>{const id=uid("t");dm().transitions.push(tr({id}));open.clear();open.add(id);save();render();};
+
+/* rename commit */
+function commitRename(inp){ if(!inp||!inp.dataset.renamecommit)return; const[type,id]=inp.dataset.renamecommit.split("::");const v=inp.value.trim();
+ if(v){ if(type==="ent"){const en=proj().entities.find(x=>x.id===id);if(en)en.name=v;} else {const en=proj().entities.find(x=>x.dims.some(d=>d.id===id));const dd=en&&en.dims.find(d=>d.id===id);if(dd)dd.name=v;} save(); }
+ renaming=null;render();
+}
+document.addEventListener("keydown",e=>{
+ if(e.target.id==="newStatus"&&e.key==="Enter")$("#addStatus").click();
+ if(e.target.dataset&&e.target.dataset.renamecommit){ if(e.key==="Enter")commitRename(e.target); if(e.key==="Escape"){renaming=null;render();} }
+});
+document.addEventListener("focusout",e=>{ if(e.target.dataset&&e.target.dataset.renamecommit)commitRename(e.target); });
+
+/* drag reorder */
+let dragIdx=null;
+document.addEventListener("dragstart",e=>{const r=e.target.closest(".srow");if(!r)return;dragIdx=+r.dataset.idx;r.classList.add("dragging");});
+document.addEventListener("dragend",e=>{document.querySelectorAll(".srow").forEach(r=>r.classList.remove("dragging","over"));});
+document.addEventListener("dragover",e=>{const r=e.target.closest(".srow");if(!r)return;e.preventDefault();document.querySelectorAll(".srow.over").forEach(x=>x.classList.remove("over"));r.classList.add("over");});
+document.addEventListener("drop",e=>{const r=e.target.closest(".srow");if(!r||dragIdx==null)return;e.preventDefault();const to=+r.dataset.idx,d=dm();const m=d.statuses.splice(dragIdx,1)[0];d.statuses.splice(to,0,m);dragIdx=null;save();render();});
+
+/* ---------------- export ---------------- */
+function download(name,text,type){const b=new Blob([text],{type});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+function exportMd(){
+ const p=proj(),e=ent(),d=dm();const L=[];const assumedList=[];
+ const cf=(t,k)=>hasGroup(t,k)?(confOf(t,k)==='firm'?' _(confirmed)_':' _(assumed)_'):'';
+ const track=(t,k)=>{ if(hasGroup(t,k)&&confOf(t,k)==='assumed')assumedList.push(`${t.from} → ${t.to} · ${k}`); };
+ L.push(`# ${e.name} — ${d.name}`);
+ L.push(`\n_Status-machine specification generated from the Process Validation tool (project: ${p.name}). Every recorded decision is tagged **confirmed** (validated — build to it) or **assumed** (not yet validated — flag before relying on it). Blank prompts were not addressed. “Checks to reconcile” are internal contradictions a developer would otherwise have to raise._\n`);
+ const order=d.statuses.map(s=>`${s.name}${s.init?' _(start)_':''}${s.term?' _(end)_':''}`).join(" → ");
+ L.push(`**Statuses:** ${order||'—'}`);
+ const b=broken(d);const noOut=Object.keys(b).filter(n=>b[n]==="dead end"),noIn=Object.keys(b).filter(n=>b[n]==="unreachable");
+ if(noOut.length)L.push(`> ⚠ No way out of: ${noOut.join(", ")} — confirm these are endings or add a transition.`);
+ if(noIn.length)L.push(`> ⚠ Nothing reaches: ${noIn.join(", ")} — add a transition into them.`);
+ const issues=consistency(d);
+ if(issues.length){L.push(`\n> **Checks to reconcile (${issues.length}):**`);issues.forEach(i=>L.push(`> - ${i}`));}
+ L.push(`\n## Transitions`);
+ d.transitions.forEach(t=>{
+   L.push(`\n### ${t.from||'?'} → ${t.to||'?'}  _(${t.kind})_`);
+   if(t.trigger)L.push(`- **Trigger:** ${t.trigger}`);
+   if(t.pre.length){L.push(`- **Preconditions:** `+t.pre.map(pc=>pc.type==='dimstate'?`${dimById(pc.dim)?.name||'?'} = ${pc.status}`:pc.text).filter(Boolean).join("; ")+cf(t,'precond'));track(t,'precond');}
+   if(t.actors.length){L.push(`- **Who can perform:** ${t.actors.join(", ")}`+cf(t,'actors'));track(t,'actors');}
+   const A=t.answers;
+   if(A.integ&&A.integ.yn){L.push(`- **Integration:** ${A.integ.yn}${A.integ.text?` — ${A.integ.text}`:''}`+cf(t,'integ'));track(t,'integ');}
+   if(A.datain&&A.datain.text){L.push(`- **Data captured:** ${A.datain.text}`+cf(t,'datain'));track(t,'datain');}
+   if(A.dataout&&A.dataout.text){L.push(`- **Data produced:** ${A.dataout.text}`+cf(t,'dataout'));track(t,'dataout');}
+   if(t.comms.length){L.push(`- **Communications:** `+t.comms.filter(c=>c.comm||c.to).map(c=>`${c.comm||'?'} → ${c.to||'?'}`).join("; ")+cf(t,'comms'));track(t,'comms');}
+   if(A.side&&A.side.text){L.push(`- **Side-effects:** ${A.side.text}`+cf(t,'side'));track(t,'side');}
+   if(A.rev&&A.rev.yn){L.push(`- **Reversible:** ${A.rev.yn}${A.rev.text?` — ${A.rev.text}`:''}`+cf(t,'rev'));track(t,'rev');}
+   if(A.oper&&A.oper.text){L.push(`- **Operational (amend/reissue/expire/audit):** ${A.oper.text}`+cf(t,'oper'));track(t,'oper');}
+   if(A.onfail&&A.onfail.text){L.push(`- **On failure:** ${A.onfail.text}`+cf(t,'onfail'));track(t,'onfail');}
+   if(A.tis&&A.tis.text)L.push(`- **Time in source state:** ${A.tis.text}`);
+   if(A.concur&&A.concur.res&&A.concur.res!=='open')L.push(`- **Two-at-once / double-fire:** ${A.concur.res}`);
+   t.impacts.filter(im=>im.where).forEach(im=>L.push(`- **Impact → ${im.where}** _(${im.type}${im.cond?`, ${im.cond}`:''})_: ${im.desc||''}`+cf(t,'impact')));
+   if(t.impacts.some(im=>im.where))track(t,'impact');
+   if((t.notes||'').trim())L.push(`- **Notes:** ${t.notes}`);
+ });
+ const map={};d.transitions.forEach(t=>t.impacts.forEach(im=>{if(im.where)(map[im.where]=map[im.where]||[]).push(`${t.from} → ${t.to} (${im.type})`);}));
+ if(Object.keys(map).length){L.push(`\n## Impact map — what this machine affects`);Object.keys(map).forEach(k=>{L.push(`\n**${k}**`);map[k].forEach(x=>L.push(`- ${x}`));});}
+ if(assumedList.length){L.push(`\n## ⚑ Assumed — validate with the client before build (${assumedList.length})`);assumedList.forEach(x=>L.push(`- ${x}`));}
+ download(`${(e.name+"_"+d.name).replace(/\s+/g,'_')}.md`,L.join("\n"),"text/markdown");
+}
+function exportJson(){const e=ent(),d=dm();download(`${(e.name+"_"+d.name).replace(/\s+/g,'_')}.json`,JSON.stringify({project:proj().name,entity:e.name,statusMachine:d},null,2),"application/json");}
+$("#expMd").onclick=exportMd; $("#expJson").onclick=exportJson;
+
+render();
+</script>
+</body>
+</html>

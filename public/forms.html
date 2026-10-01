@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forms — Spec Console</title>
+<link rel="stylesheet" href="/lib/design-system.css">
+<style>
+  /* Forms module — aligned with Spec Console design system */
+  :root {
+    --fm-accent: var(--brand);
+    --fm-accent-soft: var(--brand-soft);
+    --fm-accent-hover: var(--brand-hover);
+  }
+
+  .app {
+    display: flex;
+    min-height: calc(100vh - var(--header-h));
+    background: var(--bg);
+  }
+
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: 13px; }
+  .mono { font-family: var(--mono); }
+  .hidden { display: none; }
+
+  /* ---- sidebar ---- */
+  .side {
+    flex: 0 0 272px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    position: sticky;
+    top: var(--header-h);
+    height: calc(100vh - var(--header-h));
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fm-brand {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .fm-brand-title {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .fm-brand-title small {
+    display: block;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .side-section {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 650;
+    margin: 0 0 10px;
+  }
+  .side-section.spaced { margin-top: 20px; }
+
+  .formlist { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+  .formitem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+  }
+  .formitem:hover { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
+  .formitem.active {
+    background: var(--fm-accent-soft);
+    border-color: var(--fm-accent);
+    border-left: 3px solid var(--fm-accent);
+  }
+  .formitem .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-weight: 600; }
+  .formitem .pct {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 7px;
+  }
+  .formitem.active .pct { color: var(--fm-accent); border-color: #a7d4d2; background: #fff; }
+
+  .formitem .minibtn { opacity: 0; transition: opacity 0.12s; }
+  .formitem:hover .minibtn,
+  .formitem.active .minibtn,
+  .formitem .confirmdel { opacity: 1; }
+
+  .minibtn {
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 3px 5px;
+    border-radius: 6px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .minibtn:hover { color: var(--text); background: var(--surface-2); }
+  .minibtn.del:hover { color: var(--red); background: var(--red-soft); }
+
+  .confirmdel {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+  .confirmdel button {
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 2px 7px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .confirmdel .yes { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+
+  .renameinput {
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--fm-accent);
+    border-radius: 6px;
+    padding: 4px 8px;
+    flex: 1;
+    min-width: 0;
+    background: var(--surface);
+    box-shadow: 0 0 0 3px var(--fm-accent-soft);
+  }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .side-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .side-actions .sc-btn { width: 100%; justify-content: center; }
+
+  .namebox {
+    margin: 10px 0 4px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .namebox .namebtns { display: flex; gap: 8px; }
+  .namebox .namebtns .sc-btn { flex: 1; }
+
+  .formlist-empty {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 8px 4px 12px;
+    line-height: 1.45;
+  }
+
+  /* ---- main ---- */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+
+  .fm-topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: var(--header-h);
+    z-index: 5;
+    flex-wrap: wrap;
+  }
+  .fm-topbar h1 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+  .fm-crumb { font-size: 13px; color: var(--text-secondary); }
+
+  .fm-meter { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .meterbar {
+    width: 140px;
+    height: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .meterfill { height: 100%; background: var(--fm-accent); transition: width 0.25s; border-radius: 999px; }
+  .metertxt { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+  .metertxt b { color: var(--text); font-weight: 650; }
+
+  .fm-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--fm-accent); border-bottom-color: var(--fm-accent); }
+  .tab .pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 650;
+    color: var(--text-muted);
+  }
+  .tab.active .pill { background: var(--fm-accent-soft); border-color: #a7d4d2; color: var(--fm-accent); }
+  .tab .pill.warn { background: var(--amber-soft); border-color: #fcd34d; color: var(--amber); }
+
+  .fm-content {
+    flex: 1;
+    padding: 24px 28px 64px;
+    max-width: 960px;
+    width: 100%;
+  }
+
+  .empty {
+    color: var(--text-secondary);
+    padding: 36px 28px;
+    text-align: center;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  /* ---- toolbar ---- */
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .fm-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+    line-height: 1.45;
+    max-width: 340px;
+  }
+  .fm-hint .warn { color: var(--red); font-weight: 600; }
+
+  .addmenu { position: relative; }
+
+  /* btn aliases for dynamic templates */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid var(--fm-accent);
+    background: var(--fm-accent);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .btn:hover { background: var(--fm-accent-hover); }
+  .btn.sec { background: var(--surface); color: var(--fm-accent); }
+  .btn.sec:hover { background: var(--fm-accent-soft); }
+  .btn.sub {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-strong);
+    font-weight: 600;
+  }
+  .btn.sub:hover { background: var(--surface-2); }
+
+  .dropdownmenu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 6px;
+    z-index: 20;
+    width: 240px;
+    max-height: 360px;
+    overflow: auto;
+  }
+  .dropdownmenu .grp {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    padding: 8px 8px 4px;
+    font-weight: 650;
+  }
+  .dropdownmenu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    border: none;
+    background: none;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .dropdownmenu button:hover { background: var(--fm-accent-soft); }
+  .dropdownmenu button .tt { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-left: 6px; }
+
+  /* ---- field cards ---- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.12s;
+  }
+  .card.broken { border-color: #f5c2c0; }
+  .chead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .card > .chead:only-child { border-bottom: none; }
+  .chead.toggle { cursor: pointer; user-select: none; transition: background 0.12s; }
+  .chead.toggle:hover { background: #eef5f4; }
+  .chev { color: var(--text-muted); font-size: 11px; width: 12px; flex-shrink: 0; }
+  .ctype {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--text);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+  }
+  .clabel { font-weight: 650; font-size: 14px; color: var(--text); }
+  .ckey { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .cgap { flex: 1; }
+  .chip-considered {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .broken-badge {
+    font-size: 11px;
+    font-weight: 650;
+    color: var(--red);
+    background: var(--red-soft);
+    border: 1px solid #f5c2c0;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .xbtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 17px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .xbtn:hover { color: var(--red); background: var(--red-soft); }
+
+  .cbody {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+  }
+  .cbody.one { grid-template-columns: 1fr; }
+  .full { grid-column: 1 / -1; }
+
+  .fieldrow label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    font-weight: 650;
+  }
+  .fieldrow .hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    margin-left: 5px;
+  }
+  .ctl {
+    width: 100%;
+    padding: 8px 11px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  .ctl:focus { outline: none; border-color: var(--fm-accent); box-shadow: 0 0 0 3px var(--fm-accent-soft); }
+  .ctl.pending { border-style: dashed; border-color: var(--border-strong); color: var(--text-muted); background: var(--surface-2); }
+  .ctl.broke { border-color: #f5c2c0; background: var(--red-soft); }
+  textarea.ctl { resize: vertical; min-height: 40px; }
+
+  .optline { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; flex-wrap: wrap; }
+  .optline input { flex: 1; }
+  .optline button {
+    flex-shrink: 0;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .optline button:hover { color: var(--red); border-color: #f5c2c0; }
+
+  .colcfg {
+    flex-shrink: 0;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 5px 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .colcfg:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .colwrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-bottom: 8px;
+    background: var(--surface-2);
+  }
+  .colwrap.open { border-color: var(--border-strong); background: var(--surface); }
+  .colbody {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+    padding: 10px 2px 2px;
+    border-top: 1px dashed var(--border);
+    margin-top: 8px;
+  }
+
+  .addopt {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fm-accent);
+    background: transparent;
+    border: 1px dashed var(--fm-accent);
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .addopt:hover { background: var(--fm-accent-soft); }
+
+  .opencons {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 6px 16px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .opencons summary { cursor: pointer; font-size: 13px; color: var(--text-secondary); padding: 10px 0; font-weight: 600; }
+  .opencons ul { margin: 4px 0 10px; padding-left: 18px; }
+  .opencons li { font-size: 13px; margin-bottom: 4px; color: var(--text-secondary); }
+  .opencons li .mono { color: var(--text); }
+
+  /* attachments */
+  .attlabel {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 650;
+  }
+  .att-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .att-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 8px 4px 10px;
+    font-size: 12px;
+    max-width: 100%;
+  }
+  .att-nm { cursor: pointer; color: var(--fm-accent); text-decoration: underline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+  .att-sz { color: var(--text-muted); font-size: 11px; }
+  .att-x { border: none; background: none; color: var(--text-muted); font-size: 14px; cursor: pointer; }
+  .att-add {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fm-accent);
+    border: 1px dashed var(--fm-accent);
+    border-radius: 8px;
+    padding: 5px 12px;
+    cursor: pointer;
+    background: transparent;
+  }
+  .att-add:hover { background: var(--fm-accent-soft); }
+
+  /* preview */
+  .preview-shell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .pv-form { max-width: 460px; }
+  .pv-field { margin-bottom: 16px; }
+  .pv-label { font-size: 13px; font-weight: 650; margin-bottom: 6px; color: var(--text); }
+  .pv-req { color: var(--red); margin-left: 3px; }
+  .pv-cond {
+    font-size: 10.5px;
+    color: var(--fm-accent);
+    background: var(--fm-accent-soft);
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+  .pv-input {
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 9px 11px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 13px;
+    min-height: 20px;
+  }
+  .pv-input.tall { min-height: 56px; }
+  .pv-input.sel { display: flex; justify-content: space-between; align-items: center; }
+  .pv-input.file { border-style: dashed; color: var(--fm-accent); }
+  .pv-input.calc { font-family: var(--mono); font-size: 12px; background: var(--surface-2); }
+  .pv-opt { font-size: 13px; color: var(--text); padding: 3px 0; }
+  .pv-btns { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .pv-btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .pv-btn.primary { background: var(--fm-accent); color: #fff; border-color: var(--fm-accent); }
+  .pv-btn.destructive { background: var(--red-soft); color: var(--red); border-color: #f5c2c0; }
+  .pv-btn.link { background: none; color: var(--fm-accent); border: none; text-decoration: underline; }
+  .pv-table { border-collapse: collapse; width: 100%; margin-top: 4px; font-size: 12.5px; }
+  .pv-table th, .pv-table td { border: 1px solid var(--border-strong); padding: 7px 9px; text-align: left; }
+  .pv-table th { background: var(--surface-2); font-weight: 650; }
+  .pv-table td { height: 24px; }
+  .pv-table td.rl { background: var(--surface-2); color: var(--text-secondary); font-weight: 600; }
+  .pv-add { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--fm-accent); border: 1px dashed var(--fm-accent); border-radius: 6px; padding: 4px 11px; }
+
+  /* review / export */
+  h3.sec {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin: 28px 0 12px;
+    font-weight: 650;
+  }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat .n { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
+  .stat .l { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .stat.warn .n { color: var(--amber); }
+
+  .gaps {
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .gaps-red { background: var(--red-soft); border: 1px solid #f5c2c0; }
+  .gaps-red h3 { margin: 0 0 8px; font-size: 13px; color: var(--red); font-weight: 650; }
+  .gaps-green { background: var(--green-soft); border: 1px solid #86efac; }
+  .gaps-green h3 { margin: 0; font-size: 13px; color: var(--green); font-weight: 650; }
+  .gaps ul { margin: 0; padding-left: 18px; }
+  .gaps li { font-size: 13px; margin-bottom: 4px; color: var(--text); }
+  .gaps li .mono { color: var(--text); font-weight: 600; }
+
+  .exportgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .exp {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+  }
+  .exp h3 { margin: 0 0 6px; font-size: 14px; font-weight: 650; color: var(--text); }
+  .exp p { margin: 0 0 14px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; flex: 1; }
+  .exp .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .preview {
+    margin-top: 16px;
+    background: #1c2530;
+    color: #dfe6ec;
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    white-space: pre;
+    overflow: auto;
+    max-height: 360px;
+  }
+  .closex { float: right; color: #9fb0bd; background: none; border: none; font-size: 16px; cursor: pointer; }
+
+  .notesrow .notes { min-height: 56px; background: var(--surface-2); border-style: dashed; }
+
+  @media (max-width: 760px) {
+    .app { flex-direction: column; }
+    .side { flex: none; width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+    .fm-topbar, .fm-tabs, .fm-content { padding-left: 16px; padding-right: 16px; }
+    .cbody, .colbody, .summary, .exportgrid { grid-template-columns: 1fr; }
+    .fm-hint { margin-left: 0; max-width: none; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="app-header"></div>
+<div class="sc-module-body">
+<div class="app">
+  <aside class="side">
+    <div class="fm-brand">
+      <div class="fm-brand-title">Forms<small>guided form spec — no silent blanks</small></div>
+    </div>
+    <div class="side-section">Forms in project</div>
+    <div class="formlist" id="formList"></div>
+    <button class="sc-btn sc-btn-primary sc-btn-sm" id="addForm" type="button" style="width:100%;margin-top:8px">+ New form</button>
+    <div id="formNameBox"></div>
+    <div class="side-section spaced">Workspace</div>
+    <div class="side-actions">
+      <button class="sc-btn sc-btn-ghost sc-btn-sm" id="exportWs" type="button">Export workspace</button>
+      <button class="sc-btn sc-btn-ghost sc-btn-sm" id="importWs" type="button">Import workspace</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" class="hidden">
+  </aside>
+
+  <main class="main">
+    <div class="fm-topbar">
+      <div>
+        <h1 id="pageTitle">No form selected</h1>
+        <div class="fm-crumb" id="formCrumb"></div>
+      </div>
+      <div class="fm-meter">
+        <div class="meterbar"><div class="meterfill" id="meterFill" style="width:0"></div></div>
+        <div class="metertxt" id="meterTxt">—</div>
+      </div>
+    </div>
+    <div class="fm-tabs" id="tabs">
+      <button class="tab active" data-tab="fields" type="button">Fields <span class="pill" id="pf">0</span></button>
+      <button class="tab" data-tab="buttons" type="button">Buttons <span class="pill" id="pb">0</span></button>
+      <button class="tab" data-tab="review" type="button">Review &amp; export</button>
+    </div>
+    <div class="fm-content" id="view"></div>
+  </main>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/lib/runtime-config.js"></script>
+<script src="/lib/org.js"></script>
+<script src="/lib/auth.js"></script>
+<script src="/lib/shell.js"></script>
+<script>
+if (!window.storage) {
+  window.storage = {
+    get: async (key) => { const value = localStorage.getItem(key); return value ? { value } : null; },
+    set: async (key, value) => { localStorage.setItem(key, value); },
+  };
+}
+
+(async function () {
+  "use strict";
+  if (!(await Auth.guardPage())) return;
+  const PROJECT_ID = Org.getProjectIdFromUrl();
+  if (!PROJECT_ID) { window.location.replace("/index.html"); return; }
+  const shellCtx = Shell.mount("app-header", { page: "forms", projectId: PROJECT_ID, requireProject: true });
+  if (!shellCtx) { window.location.replace("/index.html?error=no-access"); return; }
+  const READ_ONLY = () => !Org.canWrite(PROJECT_ID);
+  const FORMS_KEY = "spec-console-forms";
+
+  function normalizeWS() {
+    if (!WS || typeof WS !== "object") WS = { forms: [], activeForm: null, tab: "fields", addOpen: false };
+    if (!Array.isArray(WS.forms)) WS.forms = [];
+    if (!WS.tab) WS.tab = "fields";
+  }
+
+/* ============================================================
+   FIELD TYPE REGISTRY  — the "completeness contract"
+   Each type lists the questions it must answer. A question with
+   required:true and value "" (or sentinel "?") is an UNSPECIFIED
+   gap and is counted against completeness. "No restriction" is a
+   real, selectable answer — distinct from leaving it blank.
+   ============================================================ */
+const SENT = "— choose —";           // forces an explicit decision
+const COMMON = [
+  {k:"required", q:"Mandatory?", t:"sel", opts:[SENT,"Required","Optional"], req:true},
+  {k:"defaultValue", q:"Default value", t:"text", req:false, hint:"blank = none"},
+  {k:"editability", q:"Editable?", t:"sel", opts:["Always editable","Read-only","Conditionally editable"], req:true},
+  {k:"editCond", q:"Editable when…", t:"text", req:false, showIf:["editability","Conditionally editable"], hint:"e.g. status = Draft"},
+  {k:"visibility", q:"Visible?", t:"sel", opts:["Always visible","Conditional"], req:true},
+  {k:"visCond", q:"Show when…", t:"text", req:false, showIf:["visibility","Conditional"], hint:"e.g. type = Consultand"},
+  {k:"errorMsg", q:"Error message on invalid", t:"text", req:false, hint:"shown to the user"},
+];
+const TYPES = {
+  shortText:{label:"Short text", sjs:"text", house:"Free text", q:[
+    {k:"minLen", q:"Min length", t:"num", req:false},
+    {k:"maxLen", q:"Max length", t:"num", req:true, hint:"a cap is almost always needed"},
+    {k:"pattern", q:"Allowed characters", t:"sel", opts:[SENT,"Any","Letters only","Alphanumeric","Custom regex"], req:true},
+    {k:"regex", q:"Regex", t:"text", req:false, showIf:["pattern","Custom regex"]},
+  ]},
+  longText:{label:"Long text", sjs:"comment", house:"Free text", q:[
+    {k:"maxLen", q:"Max length", t:"num", req:true},
+  ]},
+  email:{label:"Email", sjs:"text:email", house:"Free text", q:[
+    {k:"multi", q:"How many?", t:"sel", opts:["Single","Multiple"], req:true},
+    {k:"domainPolicy", q:"Domain restriction", t:"sel", opts:[SENT,"Any domain","Allow-list only","Block-list"], req:true},
+    {k:"domains", q:"Domains (comma separated)", t:"text", req:false, showIf2:["domainPolicy",["Allow-list only","Block-list"]]},
+  ]},
+  number:{label:"Number", sjs:"text:number", house:"Free text", q:[
+    {k:"min", q:"Min value", t:"num", req:true, hint:"set 'no min' explicitly if none"},
+    {k:"max", q:"Max value", t:"num", req:true},
+    {k:"decimals", q:"Decimals allowed", t:"sel", opts:[SENT,"Integer only","1","2","Unlimited"], req:true},
+    {k:"negative", q:"Negative allowed?", t:"sel", opts:[SENT,"Yes","No"], req:true},
+    {k:"unit", q:"Unit / suffix", t:"text", req:false, hint:"e.g. kg, %"},
+  ]},
+  currency:{label:"Currency", sjs:"text:number", house:"Free text", q:[
+    {k:"ccy", q:"Currency", t:"text", req:true, hint:"e.g. INR, GBP"},
+    {k:"min", q:"Min", t:"num", req:true},
+    {k:"max", q:"Max", t:"num", req:true},
+    {k:"decimals", q:"Decimals", t:"sel", opts:["2","0"], req:true},
+  ]},
+  phone:{label:"Phone", sjs:"text:tel", house:"Free text", q:[
+    {k:"region", q:"Number format / country", t:"text", req:true, hint:"e.g. India 10-digit"},
+    {k:"cc", q:"Include country code?", t:"sel", opts:[SENT,"Yes","No"], req:true},
+  ]},
+  date:{label:"Date", sjs:"text:date", house:"DD/MM/YYYY", q:[
+    {k:"minDate", q:"Earliest allowed", t:"sel", opts:[SENT,"No limit","Today","Specific date","Relative (e.g. -30d)"], req:true},
+    {k:"minDateVal", q:"…value", t:"text", req:false, showIf2:["minDate",["Specific date","Relative (e.g. -30d)"]]},
+    {k:"maxDate", q:"Latest allowed", t:"sel", opts:[SENT,"No limit","Today","Specific date","Relative"], req:true},
+    {k:"maxDateVal", q:"…value", t:"text", req:false, showIf2:["maxDate",["Specific date","Relative"]]},
+    {k:"time", q:"Include time?", t:"sel", opts:[SENT,"Date only","Date + time"], req:true},
+  ]},
+  dropdown:{label:"Dropdown (single)", sjs:"dropdown", house:"Dropdown", q:[
+    {k:"source", q:"Options come from", t:"sel", opts:[SENT,"Static list","System list / API"], req:true},
+    {k:"options", q:"Options", t:"opts", req:false, showIf:["source","Static list"]},
+    {k:"sourceNote", q:"Which system list?", t:"text", req:false, showIf:["source","System list / API"]},
+    {k:"allowOther", q:"Allow 'Other' free text?", t:"sel", opts:[SENT,"No","Yes"], req:true},
+    {k:"searchable", q:"Searchable?", t:"sel", opts:["No","Yes"], req:false},
+  ]},
+  multiselect:{label:"Multi-select", sjs:"checkbox", house:"Multi-select", q:[
+    {k:"options", q:"Options", t:"opts", req:true},
+    {k:"minSel", q:"Min selections", t:"num", req:true, hint:"0 if optional"},
+    {k:"maxSel", q:"Max selections", t:"num", req:false, hint:"blank = no cap"},
+    {k:"allowOther", q:"Allow 'Other'?", t:"sel", opts:[SENT,"No","Yes"], req:true},
+  ]},
+  radio:{label:"Radio (single-select)", sjs:"radiogroup", house:"Single-select", q:[
+    {k:"options", q:"Options", t:"opts", req:true},
+  ]},
+  checkbox:{label:"Checkbox / toggle", sjs:"boolean", house:"Single-select", q:[
+    {k:"defaultState", q:"Default state", t:"sel", opts:[SENT,"Unchecked / off","Checked / on"], req:true},
+  ]},
+  file:{label:"File upload", sjs:"file", house:"File upload", q:[
+    {k:"types", q:"Allowed file types", t:"text", req:true, hint:"e.g. pdf, jpg, png"},
+    {k:"maxSize", q:"Max size (MB)", t:"num", req:true},
+    {k:"multiFile", q:"Multiple files?", t:"sel", opts:[SENT,"Single","Multiple"], req:true},
+    {k:"maxCount", q:"Max count", t:"num", req:false, showIf:["multiFile","Multiple"]},
+  ]},
+  lookup:{label:"Lookup / typeahead", sjs:"dropdown", house:"Lookup", q:[
+    {k:"dataset", q:"Searches which dataset?", t:"text", req:true},
+    {k:"minChars", q:"Min chars to trigger search", t:"num", req:true},
+  ]},
+  calculated:{label:"Calculated / auto-filled", sjs:"expression", house:"Calculated", q:[
+    {k:"formula", q:"Computed from / source", t:"text", req:true, hint:"e.g. weight / (height^2)"},
+  ]},
+  table:{label:"Table / repeatable rows", sjs:"matrixdynamic", house:"[TABLE]", q:[
+    {k:"mode", q:"Table type", t:"sel", opts:[SENT,"Repeatable (users add rows)","Fixed rows (predefined)"], req:true},
+    {k:"columns", q:"Columns (each column is a typed cell)", t:"cols", req:true, full:true},
+    {k:"minRows", q:"Minimum rows", t:"num", req:false, showIf:["mode","Repeatable (users add rows)"], hint:"0 = none required"},
+    {k:"maxRows", q:"Maximum rows", t:"num", req:false, showIf:["mode","Repeatable (users add rows)"], hint:"blank = no cap"},
+    {k:"addRowText", q:"Add-row button label", t:"text", req:false, showIf:["mode","Repeatable (users add rows)"], hint:"default: Add New"},
+    {k:"rowLabels", q:"Predefined row labels", t:"opts", req:true, showIf:["mode","Fixed rows (predefined)"]},
+  ]},
+};
+// column cell types -> house vocab + SurveyJS cellType
+const COL_TYPES = ["Free text","Number","Date","Dropdown","Yes/No","File","Calculated"];
+function colHouseType(t){ return ({ "Free text":"Free text","Number":"Free text","Date":"DD/MM/YYYY","Dropdown":"Dropdown","Yes/No":"Single-select","File":"File upload","Calculated":"Calculated" }[t]||"Free text"); }
+function colCellType(t){ return ({ "Free text":"text","Number":"text","Date":"text","Dropdown":"dropdown","Yes/No":"boolean","File":"file","Calculated":"expression" }[t]||"text"); }
+const TYPE_GROUPS = [
+  {g:"Text", items:["shortText","longText","email","phone"]},
+  {g:"Numeric & date", items:["number","currency","date"]},
+  {g:"Choice", items:["dropdown","multiselect","radio","checkbox"]},
+  {g:"Structured", items:["table"]},
+  {g:"Other", items:["file","lookup","calculated"]},
+];
+
+/* Button question set */
+const BTN_Q = [
+  {k:"label", q:"Button label", t:"text", req:true, hint:"what the user reads"},
+  {k:"style", q:"Style", t:"sel", opts:[SENT,"Primary","Secondary","Destructive","Link"], req:true},
+  {k:"enabledWhen", q:"Enabled when", t:"sel", opts:[SENT,"Always","All required fields valid","Condition"], req:true},
+  {k:"enabledCond", q:"…condition", t:"text", req:false, showIf:["enabledWhen","Condition"]},
+  {k:"validates", q:"Validations before it acts (fail-fast order)", t:"area", req:true, full:true, hint:"list the checks in the order they run; first failure stops"},
+  {k:"action", q:"Action it triggers", t:"text", req:true, hint:"e.g. Save draft / Submit / Go to step 2 / Call API X"},
+  {k:"onSuccess", q:"On success", t:"text", req:true, hint:"message + navigation + status change"},
+  {k:"onError", q:"On error", t:"text", req:true, hint:"what the user sees, where focus goes"},
+  {k:"confirm", q:"Confirmation prompt?", t:"sel", opts:[SENT,"No","Yes"], req:true},
+];
+
+/* ============================================================ STATE */
+let WS = {forms:[], activeForm:null, tab:"fields", addOpen:false};
+const uid = () => Math.random().toString(36).slice(2,9);
+const $ = s => document.querySelector(s);
+const OPEN = new Set();              // collapsed by default; tracks expanded card/column ids
+const isOpen = id => OPEN.has(id);
+function toggleOpen(id){ OPEN.has(id)?OPEN.delete(id):OPEN.add(id); render(); }
+
+async function load(){
+  try{
+    let raw = localStorage.getItem(FORMS_KEY);
+    if(!raw) raw = localStorage.getItem("workspace");
+    if(raw) WS = Object.assign({forms:[], activeForm:null, tab:"fields", addOpen:false}, JSON.parse(raw));
+  }catch(e){ console.error("forms load", e); }
+  normalizeWS();
+  if(WS.activeForm && !WS.forms.some(f=>f.id===WS.activeForm && f.projectId===PROJECT_ID)) WS.activeForm=null;
+  try { render(); } catch(e) { console.error("forms render", e); }
+}
+async function save(){
+  try{ localStorage.setItem(FORMS_KEY, JSON.stringify(stripped())); return true; }catch(e){ return false; }
+}
+function stripped(){ const {addOpen,naming,...keep}=WS; return keep; }
+
+const curProjForms = () => WS.forms.filter(f=>f.projectId===PROJECT_ID);
+const curForm = () => WS.forms.find(f=>f.id===WS.activeForm) || null;
+const projectName = () => Org.getProject(PROJECT_ID)?.name || "Project";
+
+let pendingFormDel = null;
+let renamingForm = null;
+const formNameCell = (f) => renamingForm === f.id
+  ? `<input class="renameinput" data-renameform="${f.id}" value="${esc(f.name)}" autofocus>`
+  : `<span class="nm">${esc(f.name)}</span>`;
+
+function commitFormRename(inp){
+  if(!inp?.dataset.renameform) return;
+  const f = WS.forms.find(x => x.id === inp.dataset.renameform);
+  const v = inp.value.trim();
+  if(v && f){ f.name = v; f.updatedAt = Date.now(); save(); }
+  renamingForm = null;
+  render();
+}
+function deleteForm(id){
+  WS.forms = WS.forms.filter(x => x.id !== id);
+  if(WS.activeForm === id){
+    const remaining = curProjForms();
+    WS.activeForm = remaining[0]?.id || null;
+  }
+  pendingFormDel = null;
+  renamingForm = null;
+  save();
+  render();
+}
+
+/* ============================================================ CRUD */
+function startName(kind){ if(READ_ONLY()) return Shell.toast("Read-only access"); WS.naming=kind; render();
+  const el=document.querySelector('#formNameInput'); if(el){el.focus();} }
+function commitName(){
+  if(READ_ONLY()) return;
+  if(WS.naming!=='form') return;
+  const el=document.querySelector('#formNameInput');
+  const name=(el&&el.value.trim())||'New form';
+  const id=uid(); WS.forms.push({id, projectId:PROJECT_ID, name, fields:[], buttons:[], notes:"", updatedAt:Date.now()}); WS.activeForm=id; WS.tab="fields";
+  WS.naming=null; save(); render();
+}
+function cancelName(){ WS.naming=null; render(); }
+function newForm(){ if(READ_ONLY()) return; startName('form'); }
+function nameBoxHtml(){
+  return `<div class="namebox"><input id="formNameInput" class="sc-input" placeholder="Form / screen name…" autocomplete="off"><div class="namebtns"><button class="sc-btn sc-btn-primary sc-btn-sm" data-namecommit type="button">Add form</button><button class="sc-btn sc-btn-secondary sc-btn-sm" data-namecancel type="button">Cancel</button></div></div>`;
+}
+function renderNameBoxes(){
+  const fb=$("#formNameBox");
+  if(fb) fb.innerHTML = WS.naming==='form' ? nameBoxHtml() : '';
+  const inp=document.querySelector('#formNameInput');
+  if(inp){ inp.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();commitName();} else if(e.key==='Escape'){cancelName();} }; inp.focus(); }
+  document.querySelectorAll('[data-namecommit]').forEach(b=>b.onclick=commitName);
+  document.querySelectorAll('[data-namecancel]').forEach(b=>b.onclick=cancelName);
+}
+function addField(type){
+  if(READ_ONLY()) return;
+  const f=curForm(); if(!f) return;
+  const field={id:uid(), type, key:"", label:"", props:{}};
+  // seed safe smart defaults (non-decision answers only — decisions stay unset)
+  field.props.editability="Always editable";
+  field.props.visibility="Always visible";
+  if(type==="email") field.props.multi="Single";
+  if(type==="currency") field.props.decimals="2";
+  if(type==="dropdown") field.props.searchable="No";
+  if(type==="table"){ field.props.columns=[{name:"",type:SENT,options:""}]; field.props.addRowText="Add New"; }
+  f.fields.push(field); WS.addOpen=false; OPEN.add(field.id); f.updatedAt=Date.now(); save(); render();
+}
+function addButton(){
+  if(READ_ONLY()) return;
+  const f=curForm(); if(!f) return;
+  const b={id:uid(), props:{}}; f.buttons.push(b); OPEN.add(b.id); save(); render();
+}
+function delItem(arr,id){ if(READ_ONLY()) return; const f=curForm(); const i=f[arr].findIndex(x=>x.id===id); if(i>-1)f[arr].splice(i,1); f.updatedAt=Date.now(); save(); render(); }
+
+/* ============================================================ ATTACHMENTS (inline base64) */
+const ATT_MAX = 2*1048576; // ~2MB/file
+function fmtSize(b){ return b<1024?b+" B":b<1048576?(b/1024).toFixed(0)+" KB":(b/1048576).toFixed(1)+" MB"; }
+function resolveAtt(loc, create){ const [k,a,b]=loc.split(":"); const f=curForm(); if(!f)return null;
+  let owner=null;
+  if(k==="f") owner=f.fields.find(x=>x.id===a);
+  else if(k==="b") owner=f.buttons.find(x=>x.id===a);
+  else if(k==="c"){ const fl=f.fields.find(x=>x.id===a); owner=fl&&(fl.props.columns||[])[+b]; }
+  if(!owner) return null;
+  if(create&&!owner.attachments) owner.attachments=[];
+  return owner.attachments||null;
+}
+function handleAttach(loc, file){ if(!file) return;
+  if(file.size>ATT_MAX){ toast("File is over ~2MB — attach a smaller sheet, CSV, or screenshot"); return; }
+  const rd=new FileReader();
+  rd.onload=async()=>{ const arr=resolveAtt(loc,true); if(!arr) return;
+    arr.push({id:uid(), name:file.name, type:file.type, size:file.size, data:rd.result});
+    const f=curForm(); if(f) f.updatedAt=Date.now();
+    const ok=await save(); if(ok===false) toast("Attached for this session, but storage is full — export the workspace to keep it");
+    render();
+  };
+  rd.readAsDataURL(file);
+}
+function attBlock(loc, atts){
+  atts=atts||[];
+  const chips=atts.map(a=>`<span class="att-chip"><span class="att-ic">${a.type&&a.type.startsWith("image/")?"🖼":"📎"}</span><span class="att-nm" data-att-dl="${loc}::${a.id}" title="download">${esc(a.name)}</span><span class="att-sz">${fmtSize(a.size)}</span><button class="att-x" data-att-del="${loc}::${a.id}">×</button></span>`).join("");
+  return `<div class="attwrap"><label class="attlabel">📎 Attachments <span class="hint">attach an Excel / CSV / image instead of re-typing long lists or logic</span></label><div class="att-list">${chips}<label class="att-add">+ attach<input type="file" data-att-add="${loc}" hidden></label></div></div>`;
+}
+function dlAttachment(s){ const [loc,id]=s.split("::"); const arr=resolveAtt(loc); const a=arr&&arr.find(x=>x.id===id); if(!a)return; const el=document.createElement("a"); el.href=a.data; el.download=a.name; document.body.appendChild(el); el.click(); el.remove(); }
+function delAttachment(s){ const [loc,id]=s.split("::"); const arr=resolveAtt(loc); if(!arr)return; const i=arr.findIndex(x=>x.id===id); if(i>-1)arr.splice(i,1); save(); render(); }
+
+/* ============================================================ COMPLETENESS */
+function shown(q, props){
+  if(q.showIf) return props[q.showIf[0]]===q.showIf[1];
+  if(q.showIf2) return q.showIf2[1].includes(props[q.showIf2[0]]);
+  return true;
+}
+function fieldQuestions(field){ return [...COMMON, ...(TYPES[field.type]?.q||[])]; }
+function isUnset(v){ return v===undefined||v===null||v===""||v===SENT; }
+
+/* Per-column question set — surfaced in the column's expander, all optional */
+function colQuestions(type){
+  const common=[
+    {k:"mandatory",q:"Mandatory?",t:"sel",opts:[SENT,"Required","Optional"]},
+    {k:"defVal",q:"Default value",t:"text"},
+    {k:"cond",q:"Visible / editable when",t:"text",hint:"optional condition, e.g. status = Draft"},
+  ];
+  const per={
+    "Free text":[{k:"maxLen",q:"Max length",t:"num"},{k:"pattern",q:"Allowed characters",t:"sel",opts:[SENT,"Any","Letters only","Alphanumeric","Custom regex"]},{k:"regex",q:"Regex",t:"text",showIf:["pattern","Custom regex"]}],
+    "Number":[{k:"min",q:"Min value",t:"num"},{k:"max",q:"Max value",t:"num"},{k:"decimals",q:"Decimals",t:"sel",opts:[SENT,"Integer only","1","2","Unlimited"]},{k:"unit",q:"Unit / suffix",t:"text"}],
+    "Date":[{k:"minDate",q:"Earliest allowed",t:"sel",opts:[SENT,"No limit","Today","Specific date","Relative"]},{k:"maxDate",q:"Latest allowed",t:"sel",opts:[SENT,"No limit","Today","Specific date","Relative"]},{k:"timeOpt",q:"Include time?",t:"sel",opts:[SENT,"Date only","Date + time"]}],
+    "Dropdown":[{k:"allowOther",q:"Allow 'Other'?",t:"sel",opts:[SENT,"No","Yes"]}],
+    "Yes/No":[{k:"defState",q:"Default state",t:"sel",opts:[SENT,"Off","On"]}],
+    "File":[{k:"fileTypes",q:"Allowed file types",t:"text"},{k:"maxSize",q:"Max size (MB)",t:"num"}],
+    "Calculated":[{k:"formula",q:"Computed from / source",t:"text"}],
+  };
+  return common.concat(per[type]||[]);
+}
+function colShown(q,c){ return q.showIf? c[q.showIf[0]]===q.showIf[1] : true; }
+
+/* BROKEN = genuinely can't be handed off. Everything else is a soft consideration. */
+function brokenFlags(field){
+  const b=[];
+  if(isUnset(field.label)) b.push("needs a label");
+  if(isUnset(field.key)) b.push("needs a field key");
+  if(["dropdown","radio","multiselect"].includes(field.type)){ const o=(field.props.options||[]).filter(x=>x.trim()); if(o.length<1) b.push("needs at least one option"); }
+  if(field.type==="table"){ const cols=(field.props.columns||[]).filter(c=>c.name&&c.name.trim()); if(cols.length<1) b.push("needs at least one named column"); }
+  return b;
+}
+/* CONSIDERED = surfaced questions you've given an explicit answer to (incl. "Any"/"No limit"). */
+function considered(field){
+  let total=2, done=(isUnset(field.label)?0:1)+(isUnset(field.key)?0:1);
+  for(const q of fieldQuestions(field)){
+    if(!shown(q,field.props)) continue;
+    if(q.t==="opts"){ total++; if((field.props[q.k]||[]).filter(x=>x.trim()).length) done++; }
+    else if(q.t==="cols"){
+      (field.props.columns||[]).forEach(c=>{ total+=2; if(!isUnset(c.name))done++; if(!isUnset(c.type))done++;
+        if(c.type==="Dropdown"){ total++; if(!isUnset(c.options))done++; }
+        colQuestions(c.type).forEach(cq=>{ if(!colShown(cq,c))return; total++; if(!isUnset(c[cq.k]))done++; }); });
+    }
+    else { total++; if(!isUnset(field.props[q.k])) done++; }
+  }
+  return {done,total};
+}
+function buttonBroken(b){ return isUnset(b.props.label)?["needs a label"]:[]; }
+function buttonConsidered(b){ let total=0,done=0; for(const q of BTN_Q){ if(!shown(q,b.props))continue; total++; if(!isUnset(b.props[q.k]))done++; } return {done,total}; }
+function formPct(f){ let d=0,t=0;
+  f.fields.forEach(fl=>{const c=considered(fl);d+=c.done;t+=c.total;});
+  f.buttons.forEach(b=>{const c=buttonConsidered(b);d+=c.done;t+=c.total;});
+  return t?Math.round(d/t*100):0;
+}
+function blockingList(f){ const out=[];
+  f.fields.forEach(fl=>brokenFlags(fl).forEach(x=>out.push({where:`Field "${esc(fl.label||fl.key||fl.type)}"`,what:x})));
+  f.buttons.forEach(b=>buttonBroken(b).forEach(x=>out.push({where:`Button "${esc(b.props.label||'unnamed')}"`,what:x})));
+  return out;
+}
+
+/* ============================================================ RENDER */
+function render(){
+  try {
+  const ro = READ_ONLY();
+  $("#addForm").style.display = ro ? "none" : "";
+  const fl=$("#formList"); fl.innerHTML="";
+  const forms=curProjForms();
+  if(!forms.length) fl.innerHTML='<div class="formlist-empty">No forms yet — create one to start specifying fields.</div>';
+  forms.forEach(f=>{
+    const sc=formPct(f), blk=blockingList(f).length, col=blk?"var(--red)":"var(--green)";
+    const isDel = pendingFormDel === f.id;
+    const d=document.createElement("div"); d.className="formitem"+(f.id===WS.activeForm?" active":"");
+    d.innerHTML=`<span class="dot" style="background:${col}"></span>${formNameCell(f)}<span class="pct">${sc}% · ${f.fields.length}f</span>${
+      ro ? "" : isDel
+        ? `<span class="confirmdel">delete?<button class="yes" data-confirmdelform="${f.id}">yes</button><button data-cancelformdel>no</button></span>`
+        : `<button class="minibtn" data-renameformbtn="${f.id}" title="Rename">✎</button><button class="minibtn del" data-askdelform="${f.id}" title="Delete">🗑</button>`
+    }`;
+    d.onclick=(e)=>{
+      if(e.target.closest(".minibtn") || e.target.closest(".confirmdel") || e.target.closest(".renameinput")) return;
+      WS.activeForm=f.id; WS.tab="fields"; renamingForm=null; pendingFormDel=null; render();
+    };
+    fl.appendChild(d);
+  });
+  if(renamingForm){
+    const inp=document.querySelector(".renameinput[data-renameform]");
+    if(inp){ inp.focus(); inp.select(); }
+  }
+
+  const f=curForm();
+  renderNameBoxes();
+  $("#pageTitle").textContent = f ? f.name : "No form selected";
+  $("#formCrumb").textContent = f ? projectName() : "";
+  document.title = f ? `${f.name} — Forms — Spec Console` : "Forms — Spec Console";
+  if(f){ const sc=formPct(f), blk=blockingList(f).length; $("#meterFill").style.width=sc+"%";
+    $("#meterFill").style.background = "var(--fm-accent)";
+    $("#meterTxt").innerHTML = `<b>${sc}%</b> considered${blk?` · <span style="color:var(--red);font-weight:650">${blk} to fix</span>`:``}`;
+    $("#pf").textContent=f.fields.length; $("#pb").textContent=f.buttons.length;
+    const fBlk=f.fields.reduce((a,x)=>a+brokenFlags(x).length,0);
+    $("#pf").className="pill"+(fBlk?" warn":"");
+  } else { $("#meterFill").style.width="0"; $("#meterTxt").textContent="—"; }
+
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===WS.tab));
+  const v=$("#view");
+  if(!f){ v.innerHTML='<div class="empty">Pick a form from the sidebar, or create a new one to start adding fields.</div>'; return; }
+  if(WS.tab==="fields") v.innerHTML=viewFields(f);
+  else if(WS.tab==="buttons") v.innerHTML=viewButtons(f);
+  else v.innerHTML=viewReview(f);
+  bind();
+  } catch (e) {
+    console.error("forms render", e);
+    const v = $("#view");
+    if (v) v.innerHTML = '<div class="empty">Something went wrong loading this form. Try refreshing the page.</div>';
+  }
+}
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---- FIELDS TAB ---- */
+function viewFields(f){
+  let menu="";
+  if(WS.addOpen){
+    menu='<div class="dropdownmenu">'+TYPE_GROUPS.map(g=>`<div class="grp">${g.g}</div>`+g.items.map(t=>`<button data-addtype="${t}">${TYPES[t].label}<span class="tt">${t}</span></button>`).join("")).join("")+'</div>';
+  }
+  let cards = f.fields.map(renderFieldCard).join("");
+  if(!f.fields.length) cards='<div class="empty">No fields yet. Add one — every question is optional; the tool just surfaces what\'s worth deciding.</div>';
+  return `<div class="toolbar"><div class="addmenu"><button class="btn" id="toggleAdd" type="button">+ Add field${WS.addOpen?" ▴":" ▾"}</button>${menu}</div>
+    ${f.fields.length?`<button class="btn sub" id="expandAll" type="button">Expand all</button><button class="btn sub" id="collapseAll" type="button">Collapse all</button>`:``}
+    <span class="fm-hint">Everything's optional. <span class="warn">Red</span> = can't hand off yet. The % tracks how much you've looked at.</span></div>${cards}`;
+}
+function consideredChip(c){
+  if(!c.total) return "";
+  const pct=Math.round(c.done/c.total*100);
+  return `<span class="chip-considered">${c.done}/${c.total} considered</span>`;
+}
+function renderFieldCard(field){
+  const broken=brokenFlags(field), open=isOpen(field.id), c=considered(field);
+  const head=`<div class="chead toggle" data-toggle="${field.id}">
+    <span class="chev">${open?'▾':'▸'}</span>
+    <span class="ctype">${field.type}</span>
+    <span class="clabel">${field.label?esc(field.label):'<span style="color:var(--red)">untitled</span>'}</span>
+    <span class="ckey">${field.key?esc(field.key):'<span style="color:var(--red)">no_key</span>'}</span><span class="cgap"></span>
+    ${broken.length?`<span class="broken-badge">${broken.length} to fix</span>`:''}
+    ${consideredChip(c)}
+    <button class="xbtn" data-delfield="${field.id}">×</button></div>`;
+  if(!open) return `<div class="card ${broken.length?'broken':''}">${head}</div>`;
+  let rows=`<div class="fieldrow"><label>Field label</label><input class="ctl${isUnset(field.label)?' broke':''}" data-fid="${field.id}" data-prop="__label" value="${esc(field.label)}" placeholder="Email address"></div>
+    <div class="fieldrow"><label>Field key (dev)</label><input class="ctl mono${isUnset(field.key)?' broke':''}" data-fid="${field.id}" data-prop="__key" value="${esc(field.key)}" placeholder="email_address"></div>`;
+  for(const q of fieldQuestions(field)){
+    if(!shown(q,field.props)) continue;
+    rows+=qControl(field.id, q, field.props[q.k]);
+  }
+  rows+=notesRow(field.id, field.notes);
+  rows+=`<div class="fieldrow full">${attBlock('f:'+field.id, field.attachments)}</div>`;
+  return `<div class="card ${broken.length?'broken':''}">${head}<div class="cbody">${rows}</div></div>`;
+}
+function notesRow(id, val){
+  return `<div class="fieldrow full notesrow"><label>📝 Notes / my thoughts <span class="hint">free space — context for you & the team, not a rule</span></label><textarea class="ctl notes" data-fid="${id}" data-prop="__notes" placeholder="Anything you want to remember about this — open questions, why a choice was made, things to revisit…">${esc(val||"")}</textarea></div>`;
+}
+function qControl(fid, q, val){
+  const pend = q.t==="sel" && isUnset(val);   // neutral "not yet considered" cue on undecided dropdowns
+  const full = q.full||q.t==="opts"||q.t==="area"||q.t==="cols" ? " full":"";
+  const lab=`<label>${q.q}${q.hint?`<span class="hint">${q.hint}</span>`:''}</label>`;
+  let ctl="";
+  if(q.t==="sel"){
+    ctl=`<select class="ctl${pend?' pending':''}" data-fid="${fid}" data-prop="${q.k}">`+q.opts.map(o=>`<option ${val===o?'selected':''}>${o}</option>`).join("")+`</select>`;
+  } else if(q.t==="num"){
+    ctl=`<input type="number" class="ctl" data-fid="${fid}" data-prop="${q.k}" value="${val??""}">`;
+  } else if(q.t==="area"){
+    ctl=`<textarea class="ctl" data-fid="${fid}" data-prop="${q.k}">${esc(val||"")}</textarea>`;
+  } else if(q.t==="opts"){
+    const arr=val||[""];
+    ctl=`<div data-optswrap="${fid}:${q.k}">`+arr.map((o,i)=>`<div class="optline"><input class="ctl" data-optedit="${fid}:${q.k}:${i}" value="${esc(o)}" placeholder="Option ${i+1}"><button data-optdel="${fid}:${q.k}:${i}">×</button></div>`).join("")+`<button class="addopt" data-optadd="${fid}:${q.k}">+ option</button></div>`;
+  } else if(q.t==="cols"){
+    const cols=val||[];
+    ctl=`<div>`+cols.map((c,i)=>colRow(fid,c,i)).join("")+`<button class="addopt" data-coladd="${fid}">+ column</button></div>`;
+  } else {
+    ctl=`<input class="ctl" data-fid="${fid}" data-prop="${q.k}" value="${esc(val||"")}">`;
+  }
+  return `<div class="fieldrow${full}">${lab}${ctl}</div>`;
+}
+function colRow(fid,c,i){
+  const cid=`col:${fid}:${i}`, open=isOpen(cid);
+  const typeSel=`<select class="ctl${isUnset(c.type)?' pending':''}" data-coledit="${fid}:${i}:type" style="max-width:140px"><option ${isUnset(c.type)?'selected':''}>${SENT}</option>`+COL_TYPES.map(t=>`<option ${c.type===t?'selected':''}>${t}</option>`).join("")+`</select>`;
+  const opts = c.type==="Dropdown"? `<input class="ctl" data-coledit="${fid}:${i}:options" placeholder="options, comma separated" value="${esc(c.options||'')}">`:"";
+  const cq=colQuestions(c.type).filter(q=>!isUnset(c.type));
+  const summary=`<div class="optline">
+    <input class="ctl${isUnset(c.name)?' broke':''}" data-coledit="${fid}:${i}:name" placeholder="Column ${i+1} name" value="${esc(c.name||'')}" style="max-width:190px">
+    ${typeSel}${opts}
+    <button class="colcfg" data-coltoggle="${cid}" ${isUnset(c.type)?'disabled title="pick a type first"':''}>${open?'▾':'▸'} configure</button>
+    <button data-coldel="${fid}:${i}">×</button></div>`;
+  if(!open || isUnset(c.type)) return `<div class="colwrap">${summary}</div>`;
+  let body=cq.map(q=>{
+    const pend = q.t==="sel" && isUnset(c[q.k]);
+    const lab=`<label>${q.q}${q.hint?`<span class="hint">${q.hint}</span>`:''}</label>`;
+    let ctl;
+    if(q.t==="sel") ctl=`<select class="ctl${pend?' pending':''}" data-coledit="${fid}:${i}:${q.k}">`+q.opts.map(o=>`<option ${c[q.k]===o?'selected':''}>${o}</option>`).join("")+`</select>`;
+    else if(q.t==="num") ctl=`<input type="number" class="ctl" data-coledit="${fid}:${i}:${q.k}" value="${c[q.k]??""}">`;
+    else ctl=`<input class="ctl" data-coledit="${fid}:${i}:${q.k}" value="${esc(c[q.k]||'')}">`;
+    return `<div class="fieldrow">${lab}${ctl}</div>`;
+  }).join("");
+  body+=`<div class="fieldrow full notesrow"><label>📝 Column notes <span class="hint">context for this column</span></label><textarea class="ctl notes" data-colnotes="${fid}:${i}" placeholder="e.g. dropdown values live in the attached sheet…">${esc(c.notes||'')}</textarea></div>`;
+  body+=`<div class="fieldrow full">${attBlock('c:'+fid+':'+i, c.attachments)}</div>`;
+  return `<div class="colwrap open">${summary}<div class="colbody">${body}</div></div>`;
+}
+
+/* ---- BUTTONS TAB ---- */
+function viewButtons(f){
+  let cards=f.buttons.map(b=>{
+    const broken=buttonBroken(b), open=isOpen(b.id), c=buttonConsidered(b);
+    const head=`<div class="chead toggle" data-toggle="${b.id}"><span class="chev">${open?'▾':'▸'}</span><span class="ctype">button</span><span class="clabel">${b.props.label?esc(b.props.label):'<span style="color:var(--red)">unnamed</span>'}</span><span class="cgap"></span>${broken.length?`<span class="broken-badge">${broken.length} to fix</span>`:''}${consideredChip(c)}<button class="xbtn" data-delbtn="${b.id}">×</button></div>`;
+    if(!open) return `<div class="card ${broken.length?'broken':''}">${head}</div>`;
+    let rows=BTN_Q.filter(q=>shown(q,b.props)).map(q=>qControl(b.id,q,b.props[q.k])).join("");
+    rows+=notesRow(b.id, b.notes);
+    rows+=`<div class="fieldrow full">${attBlock('b:'+b.id, b.attachments)}</div>`;
+    return `<div class="card ${broken.length?'broken':''}">${head}<div class="cbody">${rows}</div></div>`;
+  }).join("");
+  if(!f.buttons.length) cards='<div class="empty">Buttons are not fields. Each one can specify: when it\'s enabled, which validations run (and in what order), the action, and what happens on success vs error — all optional, all worth a glance.</div>';
+  return `<div class="toolbar"><button class="btn" id="addBtnBtn" type="button">+ Add button</button>
+    ${f.buttons.length?`<button class="btn sub" id="expandAll" type="button">Expand all</button><button class="btn sub" id="collapseAll" type="button">Collapse all</button>`:``}
+    <span class="fm-hint">Most test-time bugs hide here — error behaviour and validation order.</span></div>${cards}`;
+}
+
+/* ---- REVIEW & EXPORT ---- */
+function viewReview(f){
+  const sc=formPct(f);
+  const blocking=blockingList(f);
+  const blockHtml = blocking.length
+    ? `<div class="gaps gaps-red"><h3>${blocking.length} blocking — can't hand off until fixed</h3><ul>${blocking.map(g=>`<li><span class="mono">${esc(g.where)}</span> — ${esc(g.what)}</li>`).join("")}</ul></div>`
+    : `<div class="gaps gaps-green"><h3>Nothing blocking ✓</h3>Every field has a label, key, and the structure it needs — this is handoff-ready whenever you are.</div>`;
+  return `<div class="summary">
+    <div class="stat"><div class="n">${f.fields.length}</div><div class="l">fields</div></div>
+    <div class="stat"><div class="n">${f.buttons.length}</div><div class="l">buttons</div></div>
+    <div class="stat"><div class="n">${sc}%</div><div class="l">considered</div></div>
+  </div>${blockHtml}
+  <h3 class="sec">Form preview</h3>
+  <div class="preview-shell">${formPreview(f)}</div>
+  <div class="fieldrow full" style="margin:18px 0 6px"><label>📝 Form notes <span class="hint">overall thoughts, open questions, decisions for this whole form</span></label><textarea class="ctl notes" id="formNotes" placeholder="Notes about the form as a whole…">${esc(f.notes||"")}</textarea></div>
+  <h3 class="sec">Export</h3>
+  <div class="exportgrid">
+    <div class="exp"><h3>Dev handoff doc</h3><p>Human-readable spec incl. your notes; unspecified items marked plainly so devs ask rather than assume.</p><div class="row"><button class="btn sub" data-export="doc">Preview</button><button class="btn" data-download="doc">Download .md</button></div></div>
+    <div class="exp"><h3>House field-spec CSV</h3><p>Your existing column convention (label : type, options, sections) — opens in Excel.</p><div class="row"><button class="btn sub" data-export="csv">Preview</button><button class="btn" data-download="csv">Download .csv</button></div></div>
+    <div class="exp"><h3>SurveyJS JSON</h3><p>Machine-readable. If the team renders in SurveyJS this <em>is</em> the form.</p><div class="row"><button class="btn sub" data-export="sjs">Preview</button><button class="btn" data-download="sjs">Download .json</button></div></div>
+    <div class="exp"><h3>Canonical model JSON</h3><p>The full spec including buttons &amp; notes (SurveyJS omits those). Source of truth.</p><div class="row"><button class="btn sub" data-export="full">Preview</button><button class="btn" data-download="full">Download .json</button></div></div>
+  </div>
+  <div id="previewWrap"></div>`;
+}
+/* read-only visual mock of the form */
+function formPreview(f){
+  if(!f.fields.length && !f.buttons.length) return '<div class="empty" style="padding:20px;text-align:left;border:none;background:transparent">Nothing to preview yet — add some fields or buttons.</div>';
+  let h='<div class="pv-form">';
+  f.fields.forEach(fl=>{
+    if(fl.props.visibility==="Conditional") h+=`<div class="pv-cond">shown when: ${esc(fl.props.visCond||'(condition)')}</div>`;
+    const req = fl.props.required==="Required" ? '<span class="pv-req">*</span>' : '';
+    h+=`<div class="pv-field"><div class="pv-label">${esc(fl.label||'(untitled)')}${req}</div>${pvControl(fl)}</div>`;
+  });
+  if(f.buttons.length){ h+='<div class="pv-btns">'+f.buttons.map(b=>`<span class="pv-btn ${(b.props.style||'').toLowerCase()}">${esc(b.props.label||'Button')}</span>`).join("")+'</div>'; }
+  h+='</div>';
+  return h;
+}
+function pvControl(fl){
+  const p=fl.props, ph=(t)=>`<div class="pv-input">${t}</div>`;
+  switch(fl.type){
+    case "longText": return `<div class="pv-input tall"></div>`;
+    case "dropdown": case "lookup": return `<div class="pv-input sel">${esc((p.options||[]).filter(x=>x&&x.trim())[0]||'Select…')} ▾</div>`;
+    case "radio": return (p.options||[]).filter(x=>x&&x.trim()).map(o=>`<div class="pv-opt">◯ ${esc(o)}</div>`).join("")||ph('◯ option');
+    case "multiselect": return (p.options||[]).filter(x=>x&&x.trim()).map(o=>`<div class="pv-opt">☐ ${esc(o)}</div>`).join("")||ph('☐ option');
+    case "checkbox": return `<div class="pv-opt">◻ ${esc(fl.label||'')}</div>`;
+    case "file": return `<div class="pv-input file">⭱ Choose file${p.fileTypes?` (${esc(p.fileTypes)})`:''}</div>`;
+    case "date": return `<div class="pv-input sel">dd / mm / yyyy 📅</div>`;
+    case "number": case "currency": return ph((p.ccy?esc(p.ccy)+' ':'')+'0'+(p.unit?' '+esc(p.unit):''));
+    case "calculated": return `<div class="pv-input calc">= ${esc(p.formula||'computed')}</div>`;
+    case "table": {
+      const cols=(p.columns||[]).filter(c=>c.name&&c.name.trim());
+      if(!cols.length) return ph('(no columns yet)');
+      const fixed=(p.mode||"").startsWith("Fixed");
+      let t='<table class="pv-table"><thead><tr>'+(fixed?'<th></th>':'')+cols.map(c=>`<th>${esc(c.name)}${c.mandatory==='Required'?' *':''}</th>`).join("")+'</tr></thead><tbody>';
+      if(fixed){ (p.rowLabels||[]).filter(x=>x&&x.trim()).forEach(rl=>{ t+=`<tr><td class="rl">${esc(rl)}</td>`+cols.map(()=>'<td></td>').join("")+'</tr>'; }); if(!(p.rowLabels||[]).filter(x=>x&&x.trim()).length) t+='<tr><td class="rl">(rows)</td>'+cols.map(()=>'<td></td>').join("")+'</tr>'; }
+      else { t+='<tr>'+cols.map(()=>'<td></td>').join("")+'</tr>'; }
+      t+='</tbody></table>';
+      if(!fixed) t+=`<div class="pv-add">+ ${esc(p.addRowText||'Add New')}</div>`;
+      return t;
+    }
+    default: return ph(p.domainPolicy&&fl.type==='email'?'name@example.com':'');
+  }
+}
+
+/* ============================================================ EXPORTERS */
+function num(v){ return v===""||v==null?null:Number(v); }
+function exportDoc(f){
+  let o=`# ${f.name} — form specification\n\nProject: ${projectName()}\nConsidered: ${formPct(f)}% · everything below marked "(not specified)" was left open on purpose or not yet decided — ask before assuming.\n\n## Problem this form solves\n_(fill in: what the form is for and why it matters)_\n\n## Fields\n`;
+  const NS="(not specified)";
+  f.fields.forEach((fl,i)=>{
+    o+=`\n### ${i+1}. ${fl.label||"(untitled)"}  \`${fl.key||"no_key"}\`\n`;
+    o+=`- Type: ${TYPES[fl.type].label}\n`;
+    o+=`- Mandatory: ${fl.props.required||NS}\n`;
+    o+=`- Editable: ${fl.props.editability||"-"}${fl.props.editCond?` (when ${fl.props.editCond})`:""}\n`;
+    o+=`- Visible: ${fl.props.visibility||"-"}${fl.props.visCond?` (when ${fl.props.visCond})`:""}\n`;
+    if(fl.type==="table"){
+      o+=`- Table type: ${fl.props.mode||NS}\n- Columns:\n`;
+      (fl.props.columns||[]).forEach(c=>{
+        const extra=[]; if(c.mandatory&&!isUnset(c.mandatory))extra.push(c.mandatory);
+        colQuestions(c.type).forEach(cq=>{ if(cq.k==="mandatory")return; if(colShown(cq,c)&&!isUnset(c[cq.k])) extra.push(`${cq.q.toLowerCase().replace(/[?]/g,'')}: ${c[cq.k]}`); });
+        o+=`    - ${c.name||"(unnamed)"} — ${c.type||NS}${c.type==="Dropdown"?` [${c.options||NS}]`:""}${extra.length?` · ${extra.join(" · ")}`:""}\n`;
+        if(c.notes&&c.notes.trim()) o+=`        · 📝 ${c.notes.trim().replace(/\n/g,"; ")}\n`;
+        if(c.attachments&&c.attachments.length) o+=`        · 📎 ${c.attachments.map(a=>a.name).join(", ")}\n`;
+      });
+      if((fl.props.mode||"").startsWith("Fixed")) o+=`- Predefined rows: ${(fl.props.rowLabels||[]).filter(x=>x.trim()).join(", ")||NS}\n`;
+      else o+=`- Rows: min ${fl.props.minRows||0}${fl.props.maxRows?`, max ${fl.props.maxRows}`:", no max"}; add-button "${fl.props.addRowText||"Add New"}"\n`;
+    } else {
+      (TYPES[fl.type].q).forEach(q=>{ if(!shown(q,fl.props))return; let v=fl.props[q.k];
+        if(q.t==="opts") v=(v||[]).filter(x=>x.trim()).join(", ");
+        o+=`- ${q.q}: ${isUnset(v)?NS:v}\n`; });
+    }
+    if(fl.props.defaultValue) o+=`- Default: ${fl.props.defaultValue}\n`;
+    if(fl.props.errorMsg) o+=`- Error message: "${fl.props.errorMsg}"\n`;
+    if(fl.notes && fl.notes.trim()) o+=`- 📝 Notes: ${fl.notes.trim().replace(/\n/g,"; ")}\n`;
+    if(fl.attachments && fl.attachments.length) o+=`- 📎 Attachments: ${fl.attachments.map(a=>a.name).join(", ")}\n`;
+  });
+  o+=`\n## Buttons\n`;
+  if(!f.buttons.length) o+="_None defined._\n";
+  f.buttons.forEach(b=>{ o+=`\n### ${b.props.label||"(unnamed)"} — ${b.props.style||NS}\n`;
+    BTN_Q.slice(2).forEach(q=>{ if(!shown(q,b.props))return; o+=`- ${q.q}: ${isUnset(b.props[q.k])?NS:b.props[q.k]}\n`; });
+    if(b.notes && b.notes.trim()) o+=`- 📝 Notes: ${b.notes.trim().replace(/\n/g,"; ")}\n`;
+    if(b.attachments && b.attachments.length) o+=`- 📎 Attachments: ${b.attachments.map(a=>a.name).join(", ")}\n`;
+  });
+  if(f.notes && f.notes.trim()) o+=`\n## Form notes\n${f.notes.trim()}\n`;
+  return o;
+}
+function houseType(fl){ return TYPES[fl.type].house; }
+function exportCSV(f){
+  const rows=[]; const r=(...c)=>rows.push(c.map(x=>{ x=(x==null?"":""+x); return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;}).join(","));
+  r(f.name.toUpperCase()); r("");
+  f.fields.forEach(fl=>{
+    if(fl.type==="table"){
+      const cols=(fl.props.columns||[]).filter(c=>c.name && c.name.trim());
+      if((fl.props.mode||"").startsWith("Fixed")){
+        // fixed reference table: plain header row (no [TABLE]), predefined row labels, no Add New
+        r(fl.label||"Table", ...cols.map(c=>c.name));
+        (fl.props.rowLabels||[]).filter(x=>x.trim()).forEach(rl=> r("", rl, ...cols.slice(1).map(()=>"Enter")) );
+      } else {
+        // repeatable table: [TABLE] header, type row, Add New in last column
+        r("[TABLE]", ...cols.map(c=>c.name));
+        r("", ...cols.map(c=>colHouseType(c.type)));
+        const addRow=new Array(cols.length+1).fill(""); addRow[cols.length]=fl.props.addRowText||"Add New"; r(...addRow);
+      }
+      r("");
+      return;
+    }
+    const lab=(fl.label||fl.key||"field")+(fl.props.visibility==="Conditional"&&fl.props.visCond?` (if ${fl.props.visCond})`:"")+":";
+    if(["dropdown","radio","multiselect"].includes(fl.type) && (fl.props.options||[]).filter(x=>x.trim()).length){
+      r(lab, fl.type==="multiselect"?"Multi-select":(fl.type==="radio"?"Single-select":"Dropdown"));
+      (fl.props.options||[]).filter(x=>x.trim()).forEach(o=>r("",o));
+      if(fl.props.allowOther==="Yes") r("","Others","Free text");
+    } else {
+      r(lab, houseType(fl));
+    }
+    r("");
+  });
+  return rows.join("\n");
+}
+function exportSJS(f){
+  const elements=f.fields.map(fl=>{
+    const p=fl.props;
+    if(fl.type==="table"){
+      const fixed=(p.mode||"").startsWith("Fixed");
+      const e={type:fixed?"matrixdropdown":"matrixdynamic", name:fl.key||fl.id, title:fl.label||fl.key};
+      if(p.required==="Required") e.isRequired=true;
+      e.columns=(p.columns||[]).filter(c=>c.name && c.name.trim()).map(c=>{
+        const col={name:c.name.toLowerCase().replace(/\s+/g,"_"), title:c.name, cellType:colCellType(c.type)};
+        if(c.type==="Date") col.inputType="date";
+        if(c.type==="Number") col.inputType="number";
+        if(c.type==="Dropdown") col.choices=(c.options||"").split(",").map(s=>s.trim()).filter(Boolean);
+        if(c.mandatory==="Required") col.isRequired=true;
+        if(!isUnset(c.defVal)) col.defaultValue=c.defVal;
+        if(c.cond && !isUnset(c.cond)) col.visibleIf="/* "+c.cond+" */";
+        const cv=[];
+        if(c.type==="Number"){ const mn=num(c.min),mx=num(c.max); if(mn!=null||mx!=null) cv.push({type:"numeric",...(mn!=null?{minValue:mn}:{}),...(mx!=null?{maxValue:mx}:{})}); }
+        if(c.type==="Free text"){ const mx=num(c.maxLen); if(mx!=null) cv.push({type:"text",maxLength:mx}); if(c.pattern==="Custom regex"&&c.regex) cv.push({type:"regex",regex:c.regex}); }
+        if(cv.length) col.validators=cv;
+        return col;
+      });
+      if(fixed){ e.rows=(p.rowLabels||[]).filter(x=>x.trim()).map(x=>({value:x.toLowerCase().replace(/\s+/g,"_"),text:x})); }
+      else { e.rowCount=Number(p.minRows)||0; if(p.maxRows)e.maxRowCount=Number(p.maxRows); if(num(p.minRows))e.minRowCount=Number(p.minRows); e.addRowText=p.addRowText||"Add New"; }
+      if(p.visibility==="Conditional"&&p.visCond) e.visibleIf="/* "+p.visCond+" */";
+      return e;
+    }
+    const [base,inp]=TYPES[fl.type].sjs.split(":");
+    const e={type:base, name:fl.key||fl.id, title:fl.label||fl.key};
+    if(inp) e.inputType=inp;
+    if(fl.props.required==="Required") e.isRequired=true;
+    if(fl.props.defaultValue) e.defaultValue=fl.props.defaultValue;
+    if(fl.props.errorMsg) e.requiredErrorText=fl.props.errorMsg;
+    if(fl.props.visibility==="Conditional"&&fl.props.visCond) e.visibleIf="/* "+fl.props.visCond+" */";
+    if(fl.props.editability==="Read-only") e.readOnly=true;
+    const val=[];
+    if(fl.type==="email") e.validators=[{type:"email"}];
+    if(["number","currency"].includes(fl.type)){ const mn=num(p.min),mx=num(p.max); if(mn!=null||mx!=null) val.push({type:"numeric",...(mn!=null?{minValue:mn}:{}),...(mx!=null?{maxValue:mx}:{})}); }
+    if(["shortText","longText"].includes(fl.type)){ const mn=num(p.minLen),mx=num(p.maxLen); if(mn!=null||mx!=null) val.push({type:"text",...(mn!=null?{minLength:mn}:{}),...(mx!=null?{maxLength:mx}:{})}); }
+    if(fl.type==="shortText"&&p.pattern==="Custom regex"&&p.regex) val.push({type:"regex",regex:p.regex});
+    if(val.length) e.validators=(e.validators||[]).concat(val);
+    if(["dropdown","radio","multiselect"].includes(fl.type)){ e.choices=(p.options||[]).filter(x=>x.trim()); if(p.allowOther==="Yes") e.showOtherItem=true; }
+    if(fl.type==="multiselect"){ const mn=num(p.minSel); if(mn) e.isRequired=true; }
+    if(fl.type==="file"){ if(p.types)e.acceptedTypes=p.types; if(p.maxSize)e.maxSize=Number(p.maxSize)*1024*1024; if(p.multiFile==="Multiple")e.allowMultiple=true; }
+    return e;
+  });
+  return JSON.stringify({title:f.name, _note:"buttons are not part of SurveyJS — see canonical model JSON", elements}, null, 2);
+}
+function exportFull(f){ return JSON.stringify(f, null, 2); }
+function doExport(kind, download){
+  const f=curForm(); let txt,ext,mime;
+  if(kind==="doc"){txt=exportDoc(f);ext="md";mime="text/markdown";}
+  else if(kind==="csv"){txt=exportCSV(f);ext="csv";mime="text/csv";}
+  else if(kind==="sjs"){txt=exportSJS(f);ext="surveyjs.json";mime="application/json";}
+  else {txt=exportFull(f);ext="json";mime="application/json";}
+  if(download){ dl(`${f.name.replace(/\s+/g,'_')}.${ext}`, txt, mime); toast("Downloaded"); }
+  else { $("#previewWrap").innerHTML=`<div class="preview"><button class="closex" onclick="this.parentElement.remove()">×</button>${esc(txt)}</div>`; $("#previewWrap").scrollIntoView({behavior:"smooth"}); }
+}
+function dl(name,txt,mime){ const b=new Blob([txt],{type:mime}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+
+/* ============================================================ EVENT BINDING */
+function bind(){
+  $("#toggleAdd") && ($("#toggleAdd").onclick=()=>{WS.addOpen=!WS.addOpen; render();});
+  document.querySelectorAll("[data-addtype]").forEach(b=>b.onclick=()=>addField(b.dataset.addtype));
+  $("#addBtnBtn") && ($("#addBtnBtn").onclick=addButton);
+  document.querySelectorAll("[data-delfield]").forEach(b=>b.onclick=(e)=>{e.stopPropagation(); delItem("fields",b.dataset.delfield);});
+  document.querySelectorAll("[data-delbtn]").forEach(b=>b.onclick=(e)=>{e.stopPropagation(); delItem("buttons",b.dataset.delbtn);});
+
+  // collapse / expand
+  document.querySelectorAll("[data-toggle]").forEach(el=>el.onclick=(e)=>{ if(e.target.closest(".xbtn"))return; toggleOpen(el.dataset.toggle); });
+  $("#expandAll") && ($("#expandAll").onclick=()=>{ const f=curForm(); (WS.tab==="buttons"?f.buttons:f.fields).forEach(x=>OPEN.add(x.id)); render(); });
+  $("#collapseAll") && ($("#collapseAll").onclick=()=>{ const f=curForm(); (WS.tab==="buttons"?f.buttons:f.fields).forEach(x=>OPEN.delete(x.id)); render(); });
+
+  // field/button prop edits
+  document.querySelectorAll("[data-prop]").forEach(el=>{
+    const handler=()=>{ const id=el.dataset.fid; const prop=el.dataset.prop;
+      const f=curForm(); let item=f.fields.find(x=>x.id===id)||f.buttons.find(x=>x.id===id);
+      if(!item) return;
+      if(prop==="__label") item.label=el.value;
+      else if(prop==="__key") item.key=el.value;
+      else if(prop==="__notes") item.notes=el.value;
+      else item.props[prop]=el.value;
+      f.updatedAt=Date.now(); save();
+      if(el.tagName==="SELECT") render();
+    };
+    el.addEventListener("change",handler);
+    if(el.tagName!=="SELECT" && el.dataset.prop!=="__notes") el.addEventListener("blur",render);
+  });
+
+  // options editing
+  document.querySelectorAll("[data-optedit]").forEach(el=>el.onchange=()=>{ const [fid,k,i]=el.dataset.optedit.split(":"); const f=curForm(); const fl=f.fields.find(x=>x.id===fid); fl.props[k]=fl.props[k]||[]; fl.props[k][i]=el.value; save(); });
+  document.querySelectorAll("[data-optadd]").forEach(el=>el.onclick=()=>{ const [fid,k]=el.dataset.optadd.split(":"); const f=curForm(); const fl=f.fields.find(x=>x.id===fid); fl.props[k]=fl.props[k]||[]; fl.props[k].push(""); save(); render(); });
+  document.querySelectorAll("[data-optdel]").forEach(el=>el.onclick=()=>{ const [fid,k,i]=el.dataset.optdel.split(":"); const f=curForm(); const fl=f.fields.find(x=>x.id===fid); fl.props[k].splice(i,1); save(); render(); });
+
+  // table column editing
+  document.querySelectorAll("[data-coltoggle]").forEach(el=>el.onclick=()=>toggleOpen(el.dataset.coltoggle));
+  document.querySelectorAll("[data-coledit]").forEach(el=>el.addEventListener("change",()=>{ const [fid,i,k]=el.dataset.coledit.split(":"); const f=curForm(); const fl=f.fields.find(x=>x.id===fid); fl.props.columns=fl.props.columns||[]; fl.props.columns[i][k]=el.value; save(); if(el.tagName==="SELECT")render(); }));
+  document.querySelectorAll("[data-coladd]").forEach(el=>el.onclick=()=>{ const fid=el.dataset.coladd; const f=curForm(); const fl=f.fields.find(x=>x.id===fid); fl.props.columns=fl.props.columns||[]; fl.props.columns.push({name:"",type:SENT,options:""}); save(); render(); });
+  document.querySelectorAll("[data-coldel]").forEach(el=>el.onclick=()=>{ const [fid,i]=el.dataset.coldel.split(":"); const f=curForm(); const fl=f.fields.find(x=>x.id===fid); fl.props.columns.splice(i,1); save(); render(); });
+  document.querySelectorAll("[data-colnotes]").forEach(el=>el.oninput=()=>{ const [fid,i]=el.dataset.colnotes.split(":"); const fl=curForm().fields.find(x=>x.id===fid); if(fl&&fl.props.columns[i]) fl.props.columns[i].notes=el.value; save(); });
+
+  // attachments
+  document.querySelectorAll("[data-att-add]").forEach(inp=>inp.onchange=e=>{ handleAttach(inp.dataset.attAdd, e.target.files[0]); inp.value=""; });
+  document.querySelectorAll("[data-att-dl]").forEach(el=>el.onclick=()=>dlAttachment(el.dataset.attDl));
+  document.querySelectorAll("[data-att-del]").forEach(el=>el.onclick=()=>delAttachment(el.dataset.attDel));
+
+  // export
+  $("#formNotes") && ($("#formNotes").oninput=e=>{ if(READ_ONLY()) return; curForm().notes=e.target.value; save(); });
+  document.querySelectorAll("[data-export]").forEach(b=>b.onclick=()=>doExport(b.dataset.export,false));
+  document.querySelectorAll("[data-download]").forEach(b=>b.onclick=()=>doExport(b.dataset.download,true));
+}
+
+/* global UI */
+$("#addForm").onclick=newForm;
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{WS.tab=t.dataset.tab; WS.addOpen=false; render();});
+$("#exportWs").onclick=()=>{ dl("spec-console-forms.json", JSON.stringify(stripped(),null,2),"application/json"); Shell.toast("Workspace exported"); };
+$("#importWs").onclick=()=>{ if(READ_ONLY()) return Shell.toast("Read-only access"); $("#importFile").click(); };
+$("#importFile").onchange=e=>{ const file=e.target.files[0]; if(!file)return; const rd=new FileReader(); rd.onload=()=>{ try{ const d=JSON.parse(rd.result); WS=Object.assign({tab:"fields",addOpen:false,forms:[],activeForm:null},d); normalizeWS(); save(); render(); Shell.toast("Workspace imported"); }catch(err){ Shell.toast("Invalid file"); } }; rd.readAsText(file); };
+document.addEventListener("click",e=>{
+  const t=e.target;
+  if(t.dataset.renameformbtn){
+    if(READ_ONLY()) return;
+    e.stopPropagation();
+    renamingForm=t.dataset.renameformbtn;
+    pendingFormDel=null;
+    render();
+    return;
+  }
+  if(t.dataset.askdelform){
+    if(READ_ONLY()) return;
+    e.stopPropagation();
+    pendingFormDel=t.dataset.askdelform;
+    render();
+    return;
+  }
+  if(t.dataset.cancelformdel){ pendingFormDel=null; render(); return; }
+  if(t.dataset.confirmdelform){
+    if(READ_ONLY()) return;
+    e.stopPropagation();
+    deleteForm(t.dataset.confirmdelform);
+    return;
+  }
+  if(WS.addOpen && !e.target.closest(".addmenu")){WS.addOpen=false; render();}
+});
+document.addEventListener("keydown",e=>{
+  if(e.target.dataset?.renameform){
+    if(e.key==="Enter"){ e.preventDefault(); commitFormRename(e.target); }
+    if(e.key==="Escape"){ renamingForm=null; render(); }
+  }
+});
+document.addEventListener("focusout",e=>{ if(e.target.dataset?.renameform) commitFormRename(e.target); });
+
+function toast(m){ Shell.toast(m); }
+
+load();
+})();
+</script>
+</body>
+</html>
